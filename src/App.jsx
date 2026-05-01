@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "./auth/AuthContext";
 import { useStudyDataSync } from "./hooks/useStudyDataSync";
+import { getRecentStudySessions } from "./db/userService";
 import ThemeToggle from "./components/ThemeToggle";
+import LanguageSelector from "./components/LanguageSelector";
 import MathRenderer from "./components/MathRenderer";
 
 const FREQS = {
@@ -61,10 +64,11 @@ function makeAudio(ctx, freqKey, vol) {
 }
 
 // ── Gemini API ─────────────────────────────────────────────────────────────
-const GEMINI_KEY = "AIzaSyAcL2bxwr1irL1Gt0GfICyn72ToNwOZ7gw";
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 async function callClaude(msgs, sys, signal) {
+  if (!GEMINI_KEY) throw new Error("Missing VITE_GEMINI_KEY.");
   const contents = msgs.map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
@@ -98,17 +102,28 @@ function freshSignal(abortRef) {
 function useTypewriter(text, speed = 15) {
   const [out, setOut] = useState("");
   useEffect(() => {
-    setOut("");
-    if (!text) return;
-    let i = 0;
-    const id = setInterval(() => { setOut(text.slice(0, ++i)); if (i >= text.length) clearInterval(id); }, speed);
-    return () => clearInterval(id);
-  }, [text]);
+    let id;
+    const start = setTimeout(() => {
+      setOut("");
+      if (!text) return;
+      let i = 0;
+      id = setInterval(() => {
+        setOut(text.slice(0, ++i));
+        if (i >= text.length) clearInterval(id);
+      }, speed);
+    }, 0);
+    return () => {
+      clearTimeout(start);
+      clearInterval(id);
+    };
+  }, [text, speed]);
   return out;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
 export default function App({ onGoHome }) {
+  const { user, isGuest, signOut } = useAuth();
+  const { t } = useTranslation();
   // ── State ────────────────────────────────────────────────────────────
   const [screen, setScreen]       = useState("setup");
   const [isMobile, setIsMobile]   = useState(false);
@@ -132,7 +147,7 @@ export default function App({ onGoHome }) {
   const [messages, setMessages]         = useState([]);
   const [weakAreas, setWeakAreas]       = useState({});
   const [micAllowed, setMicAllowed]     = useState(null);
-  const [speechOK, setSpeechOK]         = useState(false);
+  const [speechOK]                      = useState(() => typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition));
   const [voiceCount, setVoiceCount]     = useState(0);
   const [isContinuous, setIsContinuous]   = useState(false);
   const [textInput, setTextInput]         = useState("");
@@ -145,17 +160,21 @@ export default function App({ onGoHome }) {
   const [covered, setCovered]               = useState("");
   const [quizData, setQuizData]             = useState(null);
   const [quizLoading, setQuizLoading]       = useState(false);
+  const [quizError, setQuizError]           = useState("");
   const [answers, setAnswers]               = useState({});
   const [revealed, setRevealed]             = useState({});
   const [insight, setInsight]               = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError]     = useState("");
   const [sessionLog, setSessionLog]         = useState([]);
+  const [recentSessions, setRecentSessions] = useState([]);
   // ── Quiz adaptive system ──
   const [quizCount, setQuizCount]           = useState(3);   // configurable 3/5/7/10
   const [quizRound, setQuizRound]           = useState(1);
   const [quizHistory, setQuizHistory]       = useState([]);  // [{round,score,total,difficulty}]
   const [quizDifficulty, setQuizDifficulty] = useState("medium");
-  const [quizContinuing, setQuizContinuing] = useState(false);
+  const [, setQuizContinuing] = useState(false);
+  const [quizRoundStart, setQuizRoundStart] = useState(0);
   const [testedTopics, setTestedTopics]     = useState([]);  // topics tested so far
   // ── Follow-up system ──
   const [followUp, setFollowUp]             = useState(null); // {type:"question"|"tip", text}
@@ -193,14 +212,39 @@ export default function App({ onGoHome }) {
   const wasRunningRef      = useRef(false);  // was audio playing before voice panel opened?
   const sessionStartRef    = useRef(null);   // timestamp when current Pomodoro started
   const sessionDurationRef = useRef(0);      // actual elapsed seconds when debrief triggered
+  const chatScrollRef      = useRef(null);
+  const coveredRef         = useRef(null);
+  const lastFollowUpAtRef  = useRef(0);
+  const generateFollowUpRef = useRef(null);
+  const sendMessageRef = useRef(null);
+
+  const { onSessionComplete, onQuizComplete } = useStudyDataSync({
+    material,
+    freqKey,
+    weakAreas,
+  });
 
   const freq  = FREQS[freqKey];
   const phase = PHASES[pomPhase];
   const pct   = totalSecs > 0 ? timeLeft / totalSecs : 1;
   const typed = useTypewriter(insight, 14);
+  const quizLength = quizData?.length || 0;
+  const currentRoundStart = Math.min(quizRoundStart, quizLength);
+  const currentRoundQuestions = quizData?.slice(currentRoundStart) || [];
+  const currentRoundTotal = currentRoundQuestions.length;
   const scoreCount = Object.entries(answers)
-    .filter(([i, a]) => quizData?.[i] && a === quizData[i].answer).length;
+    .filter(([i, a]) => Number(i) >= currentRoundStart && quizData?.[i] && a === quizData[i].answer).length;
+  const currentRoundComplete = currentRoundTotal > 0
+    && currentRoundQuestions.every((_, i) => revealed[currentRoundStart + i]);
   const weakList = Object.entries(weakAreas).filter(([,v]) => v >= 2).map(([k]) => k);
+  const recentSessionItems = recentSessions.length
+    ? recentSessions.map((s, i) => ({
+        session: recentSessions.length - i,
+        nextFocus: s.next_focus_topic || s.material || "Recent study session",
+        voiceQ: s.voice_questions || 0,
+        time: s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) : "",
+      }))
+    : sessionLog.slice(-3).reverse();
 
   // keep refs in sync
   useEffect(() => { vsRef.current = voiceState; }, [voiceState]);
@@ -210,15 +254,40 @@ export default function App({ onGoHome }) {
   useEffect(() => { pctRef.current = pct; }, [pct]);
   useEffect(() => { isContinuousRef.current = isContinuous; }, [isContinuous]);
 
+  useEffect(() => {
+    if (debriefStep === "covered") {
+      window.setTimeout(() => coveredRef.current?.focus(), 60);
+    }
+  }, [debriefStep]);
+
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, followUp, followUpLoading, interim]);
+
+  const loadRecentSessions = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      setRecentSessions(await getRecentStudySessions(user.id, 3));
+    } catch (error) {
+      console.warn("[Sessions] recent load failed:", error);
+    }
+  }, [user]);
+
   // ── Init ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    setSpeechOK(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
     particles.current = Array.from({ length: 50 }, () => ({
       x: Math.random() * 560, y: Math.random() * 500,
       vx: (Math.random() - 0.5) * 0.28, vy: (Math.random() - 0.5) * 0.28,
       r: Math.random() * 1.4 + 0.4, op: Math.random() * 0.3 + 0.08,
     }));
   }, []);
+
+  useEffect(() => {
+    if (screen !== "debrief" || debriefStep !== "insight") return;
+    const id = setTimeout(loadRecentSessions, 0);
+    return () => clearTimeout(id);
+  }, [screen, debriefStep, loadRecentSessions]);
 
   // ── Master draw loop ──────────────────────────────────────────────────
   useEffect(() => {
@@ -271,7 +340,6 @@ export default function App({ onGoHome }) {
       drawBlobPath(buildPts(R, 0, 1), 0.05, runRef.current ? 0.7 : 0.28, 1.5);
 
       // Progress ring — use pctRef to avoid stale closure from [] deps
-      const circ = 2 * Math.PI * R;
       const safeP = Math.max(0, Math.min(1, pctRef.current));
       ctx.beginPath();
       ctx.arc(cx, cy, R + 22, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI);
@@ -450,7 +518,7 @@ export default function App({ onGoHome }) {
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const stopAudio = useCallback(() => {
-    aNodes.current?.nodes.forEach(n => { try { n.stop(); } catch (_) {} });
+    aNodes.current?.nodes.forEach(n => { try { n.stop(); } catch { /* ignore stopped nodes */ } });
     aNodes.current = null; aAnal.current = null; aGain.current = null;
     setAudioOn(false);
   }, []);
@@ -481,10 +549,12 @@ export default function App({ onGoHome }) {
       setDebriefStep("rating"); setFocusRating(0); setCovered("");
       setQuizData(null); setAnswers({}); setRevealed({}); setInsight("");
     } else {
+      sessionStartRef.current = null;
+      sessionDurationRef.current = 0;
       setPomPhase("focus"); setFreqKey("beta");
       const d = 25 * 60; setTimeLeft(d); setTotalSecs(d);
     }
-  }, [pomPhase, stopAudio]);
+  }, [pomPhase, stopAudio, timeLeft, totalSecs]);
 
   useEffect(() => {
     if (!running) { clearInterval(timerRef.current); return; }
@@ -612,7 +682,7 @@ export default function App({ onGoHome }) {
         if (pendingUtterRef.current) {
           const queued = pendingUtterRef.current;
           pendingUtterRef.current = "";
-          sendMessage(queued);
+          sendMessageRef.current?.(queued);
         } else if (isContinuousRef.current) {
           setVoiceState("listening");
           recogSessionRef.current?.(true); // use ref to avoid stale closure
@@ -621,7 +691,7 @@ export default function App({ onGoHome }) {
         }
       });
       // Generate follow-up asynchronously (non-blocking, does not affect voice flow)
-      generateFollowUp(clean, chatHist.current);
+      generateFollowUpRef.current?.(clean, chatHist.current);
     } catch (e) {
       isProcessingRef.current = false;
       if (e.name !== "AbortError") {
@@ -634,11 +704,15 @@ export default function App({ onGoHome }) {
     }
   }, [material, speak]);
 
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+
   // ── Internal: create & start one recognition session ─────────────────
   const startRecognitionSession = useCallback((resuming = false) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
-    if (recog.current) { try { recog.current.abort(); } catch (_) {} recog.current = null; }
+    if (recog.current) { try { recog.current.abort(); } catch { /* ignore abort races */ } recog.current = null; }
     const r = new SR();
     r.continuous = true; r.interimResults = true; r.lang = "en-US"; r.maxAlternatives = 1;
 
@@ -646,7 +720,7 @@ export default function App({ onGoHome }) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = setTimeout(() => {
         if (isContinuousRef.current && vsRef.current === "listening" && !isProcessingRef.current) {
-          startRecognitionSession(true);
+          recogSessionRef.current?.(true);
         }
       }, 5000);
     };
@@ -674,7 +748,7 @@ export default function App({ onGoHome }) {
         setVoiceError("Microphone access denied. Enable permissions in browser settings & refresh.");
         setIsContinuous(false); isContinuousRef.current = false; setVoiceState("idle");
       } else if (e.error === "no-speech") {
-        if (isContinuousRef.current && !isProcessingRef.current) startRecognitionSession(true);
+        if (isContinuousRef.current && !isProcessingRef.current) recogSessionRef.current?.(true);
         else setVoiceState("idle");
       } else if (e.error === "aborted") {
         // intentional — ignore
@@ -686,14 +760,14 @@ export default function App({ onGoHome }) {
     r.onend = () => {
       clearTimeout(silenceTimerRef.current);
       if (isContinuousRef.current && vsRef.current === "listening" && !isProcessingRef.current) {
-        setTimeout(() => startRecognitionSession(true), 150);
+        setTimeout(() => recogSessionRef.current?.(true), 150);
       } else if (!isContinuousRef.current && vsRef.current === "listening") {
         setVoiceState("idle");
       }
     };
     recog.current = r;
     try { r.start(); } catch (e) {
-      if (e.name === "InvalidStateError") setTimeout(() => startRecognitionSession(resuming), 200);
+      if (e.name === "InvalidStateError") setTimeout(() => recogSessionRef.current?.(resuming), 200);
     }
   }, [sendMessage]);
 
@@ -713,10 +787,11 @@ export default function App({ onGoHome }) {
     const next = !isContinuousRef.current;
     setIsContinuous(next); isContinuousRef.current = next; setVoiceError("");
     if (next) {
-      recogSessionRef.current?.(false) ?? startRecognitionSession(false);
+      if (recogSessionRef.current) recogSessionRef.current(false);
+      else startRecognitionSession(false);
     } else {
       clearTimeout(silenceTimerRef.current);
-      if (recog.current) { try { recog.current.abort(); } catch (_) {} recog.current = null; }
+      if (recog.current) { try { recog.current.abort(); } catch { /* ignore abort races */ } recog.current = null; }
       if (vsRef.current !== "thinking" && vsRef.current !== "speaking") setVoiceState("idle");
       setInterim("");
     }
@@ -730,7 +805,10 @@ export default function App({ onGoHome }) {
 
   // ── Follow-up generation (non-blocking, fires after each AI reply) ────
   const generateFollowUp = useCallback(async (lastReply, history) => {
-    if (!material.trim()) return;
+    if (!voiceOpen || !material.trim()) return;
+    const now = Date.now();
+    if (now - lastFollowUpAtRef.current < 3000) return;
+    lastFollowUpAtRef.current = now;
     // Only generate ~60% of the time to avoid spam
     if (Math.random() > 0.6) { setFollowUp(null); return; }
     // Prevent repetition: hash last reply to compare
@@ -747,9 +825,13 @@ export default function App({ onGoHome }) {
       const p = JSON.parse(raw.replace(/```json|```/g,"").trim());
       if (p.text && p.type) setFollowUp(p);
       else setFollowUp(null);
-    } catch (e) { setFollowUp(null); }
+    } catch { setFollowUp(null); }
     finally { setFollowUpLoading(false); }
-  }, [material]);
+  }, [material, voiceOpen]);
+
+  useEffect(() => {
+    generateFollowUpRef.current = generateFollowUp;
+  }, [generateFollowUp]);
 
   const dismissFollowUp = useCallback(() => setFollowUp(null), []);
 
@@ -769,6 +851,7 @@ export default function App({ onGoHome }) {
     if (micAllowed === null) await setupMic();
     // Pause frequency audio while mic is active — prevents AEC suppression
     wasRunningRef.current = runRef.current;
+    setAudioWasPaused(runRef.current);
     if (runRef.current) stopAudio();
     setVoiceOpen(true);
   }, [micAllowed, setupMic, stopAudio]);
@@ -778,10 +861,11 @@ export default function App({ onGoHome }) {
     setIsContinuous(false); isContinuousRef.current = false;
     isProcessingRef.current = false; pendingUtterRef.current = "";
     // Stop speech recognition
-    if (recog.current) { try { recog.current.abort(); } catch (_) {} recog.current = null; }
+    if (recog.current) { try { recog.current.abort(); } catch { /* ignore abort races */ } recog.current = null; }
     // Stop ALL mic tracks — releases the browser mic indicator light
     if (micStream.current) {
-      try { micStream.current.getTracks().forEach(t => t.stop()); } catch(_) {}
+      try { micStream.current._micCtx?.close?.(); } catch { /* ignore closed audio context */ }
+      try { micStream.current.getTracks().forEach(t => t.stop()); } catch { /* ignore stopped tracks */ }
       micStream.current = null;
       micAnal.current = null;
       setMicAllowed(null); // force re-request next time voice opens
@@ -794,6 +878,7 @@ export default function App({ onGoHome }) {
       const fk = Object.keys(FREQS).find(k => FREQS[k].color === freqRef.current?.color) || "beta";
       setTimeout(() => startAudio(fk, volume), 200);
     }
+    wasRunningRef.current = false;
   }, [startAudio, volume]);
 
   // ── Setup analyze ─────────────────────────────────────────────────────
@@ -828,13 +913,13 @@ export default function App({ onGoHome }) {
   }, []);
 
   // ── Load quiz (first round or continued round) ────────────────────────
-  const loadQuiz = async (isContinue = false) => {
-    setDebriefStep("quiz"); setQuizLoading(true);
+  const loadQuiz = useCallback(async (isContinue = false, overrideDifficulty = null) => {
+    setDebriefStep("quiz"); setQuizLoading(true); setQuizError("");
     if (!isContinue) {
       // Fresh quiz: reset everything
       setAnswers({}); setRevealed({}); setQuizRound(1);
       setQuizHistory([]); setQuizDifficulty("medium");
-      setTestedTopics([]); setQuizContinuing(false);
+      setTestedTopics([]); setQuizContinuing(false); setQuizRoundStart(0);
     }
     const signal = freshSignal(abortRef);
     const difficultyInstructions = {
@@ -844,7 +929,7 @@ export default function App({ onGoHome }) {
     };
     const avoidTopics = testedTopics.length
       ? `Avoid repeating these already-tested topics: ${testedTopics.join(", ")}.` : "";
-    const currentDiff = isContinue ? quizDifficulty : "medium";
+    const currentDiff = isContinue ? (overrideDifficulty || quizDifficulty) : "medium";
     try {
       const raw = await callClaude(
         [{ role:"user", content:`Student studied "${material}", covered "${covered || "general review"}". Generate exactly ${quizCount} multiple-choice questions. Difficulty: ${currentDiff} — ${difficultyInstructions[currentDiff]} ${avoidTopics} JSON array only no markdown: [{"q":"<question>","options":["A","B","C","D"],"answer":0,"explanation":"<why correct>","topic":"<1-3 word topic tag>"}]` }],
@@ -852,10 +937,12 @@ export default function App({ onGoHome }) {
         signal
       );
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Quiz response was empty.");
       if (isContinue) {
         // Append to existing quiz
-        const offset = quizData ? quizData.length : 0;
+        const nextStart = quizData?.length || 0;
         setQuizData(prev => [...(prev || []), ...parsed]);
+        setQuizRoundStart(nextStart);
         setQuizContinuing(true);
       } else {
         setQuizData(parsed);
@@ -864,10 +951,13 @@ export default function App({ onGoHome }) {
       const newTopics = parsed.map(q => q.topic).filter(Boolean);
       setTestedTopics(prev => [...new Set([...prev, ...newTopics])]);
     } catch (e) {
-      if (e.name !== "AbortError") setQuizData(prev => prev || []);
+      if (e.name !== "AbortError") {
+        setQuizData(prev => prev || []);
+        setQuizError(e.message || "Couldn't generate quiz.");
+      }
     }
     finally { setQuizLoading(false); }
-  };
+  }, [covered, material, quizCount, quizData, quizDifficulty, testedTopics]);
 
   // ── Called when a round is fully answered ─────────────────────────────
   const completeQuizRound = useCallback((roundScore, roundTotal) => {
@@ -877,24 +967,28 @@ export default function App({ onGoHome }) {
     const nextDiff = computeDifficulty(newHistory);
     setQuizDifficulty(nextDiff);
     setQuizRound(r => r + 1);
+    return nextDiff;
   }, [quizRound, quizDifficulty, quizHistory, computeDifficulty]);
 
   // ── Continue: load more questions at new difficulty ───────────────────
   const continueQuiz = useCallback(async () => {
     // Score current round
-    const currentRoundStart = quizContinuing ? (quizData.length - quizCount) : 0;
+    if (!quizData?.length) return;
     const roundAnswers = Object.entries(answers).filter(([i]) => Number(i) >= currentRoundStart);
     const roundScore = roundAnswers.filter(([i,a]) => quizData?.[i] && a === quizData[i].answer).length;
-    completeQuizRound(roundScore, quizCount);
-    await loadQuiz(true);
-  }, [quizContinuing, quizData, quizCount, answers, completeQuizRound]);
+    const nextDiff = completeQuizRound(roundScore, currentRoundTotal);
+    await loadQuiz(true, nextDiff);
+  }, [quizData, answers, currentRoundStart, currentRoundTotal, completeQuizRound, loadQuiz]);
 
   const loadInsight = async () => {
-    setDebriefStep("insight"); setInsightLoading(true);
+    setDebriefStep("insight"); setInsightLoading(true); setInsightError(""); setInsight("");
     const wk = weakList.join(", ") || "none";
-    const histSummary = quizHistory.length
-      ? quizHistory.map(h => `Round ${h.round}: ${h.score}/${h.total} (${h.difficulty})`).join(", ")
-      : `${scoreCount}/${quizData?.length || 0}`;
+    const completedHistory = currentRoundComplete
+      ? [...quizHistory, { round: quizRound, score: scoreCount, total: currentRoundTotal, difficulty: quizDifficulty }]
+      : quizHistory;
+    const histSummary = completedHistory.length
+      ? completedHistory.map(h => `Round ${h.round}: ${h.score}/${h.total} (${h.difficulty})`).join(", ")
+      : `${scoreCount}/${currentRoundTotal || quizData?.length || 0}`;
     try {
       const signal = freshSignal(abortRef);
       const raw = await callClaude(
@@ -931,14 +1025,20 @@ export default function App({ onGoHome }) {
           roundNumber: quizRound,
           difficulty: quizDifficulty,
           score: scoreCount,
-          totalQuestions: quizData.length,
-          topicsTested: testedTopics,
-          quizData,
+          totalQuestions: currentRoundTotal || quizData.length,
+          topicsTested: currentRoundQuestions.map(q => q.topic).filter(Boolean),
+          quizData: currentRoundQuestions.length ? currentRoundQuestions : quizData,
           answers,
+          answerOffset: currentRoundStart,
         });
       }
+      window.setTimeout(loadRecentSessions, 500);
 
-    } catch (e) { setInsight("Great session. Keep building on this momentum!"); }
+    } catch (e) {
+      if (e.name !== "AbortError") {
+        setInsightError(e.message || "Couldn't load your insight.");
+      }
+    }
     finally { setInsightLoading(false); }
   };
 
@@ -965,6 +1065,19 @@ export default function App({ onGoHome }) {
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+  const resetStudyState = (goHome = false) => {
+    const hasActiveSession = running || timeLeft !== totalSecs || screen === "debrief" || voiceOpen;
+    if (hasActiveSession && !window.confirm("End this session and change material?")) return;
+    closeVoice();
+    stopAudio(); setRunning(false);
+    setScreen("setup"); setMaterial(""); setFreqKey("beta"); setAiReason("");
+    setTimeLeft(25 * 60); setTotalSecs(25 * 60); setSessions(0); setVoiceCount(0);
+    setMessages([]); chatHist.current = []; setWeakAreas({}); setFollowUp(null);
+    setQuizData(null); setAnswers({}); setRevealed({}); setInsight(""); setQuizError(""); setInsightError("");
+    sessionStartRef.current = null; sessionDurationRef.current = 0;
+    if (goHome) onGoHome?.();
+  };
+
   // ── Shared button styles ──────────────────────────────────────────────
   const iconBtn = (extra = {}) => ({
     width: 44, height: 44, borderRadius: "50%",
@@ -984,6 +1097,9 @@ export default function App({ onGoHome }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
+        button:focus-visible,a:focus-visible,textarea:focus-visible,input:focus-visible{
+          outline:2px solid var(--focus,#00e5ff);outline-offset:3px;
+        }
         /* Theme-aware overrides via CSS custom properties */
         body[data-theme="light"]  { color-scheme: light; }
         body[data-theme="beige"]  { color-scheme: light; }
@@ -1013,6 +1129,8 @@ export default function App({ onGoHome }) {
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         @keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
         @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+        @keyframes chipIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+        @keyframes dotPulse{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
         @keyframes continuousPulse{0%,100%{box-shadow:0 0 0 0 var(--ac)}50%{box-shadow:0 0 0 8px transparent}}
         .glass{background:var(--glass,rgba(6,15,30,0.88));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:18px;backdrop-filter:blur(18px);}
         textarea{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
@@ -1031,6 +1149,9 @@ export default function App({ onGoHome }) {
         .opt-no{border-color:#ff6b6b!important;background:rgba(255,107,107,0.07)!important;color:#ff6b6b!important;}
         .opt-dim{opacity:0.28;}
         .msg{animation:msgIn 0.28s ease both}
+        .chip-in{animation:chipIn 0.32s cubic-bezier(.16,1,.3,1) both}
+        .typing-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;animation:dotPulse 1s infinite}
+        .typing-dot:nth-child(2){animation-delay:.15s}.typing-dot:nth-child(3){animation-delay:.3s}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#0f2744;border-radius:2px}
       `}</style>
 
@@ -1038,29 +1159,26 @@ export default function App({ onGoHome }) {
 
       {/* Particle bg canvas */}
       <canvas ref={partCanvasRef} width={560} height={500}
+        aria-hidden="true"
         style={{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)",
           width:"100%", maxWidth:isMobile?390:560, height:"100%", pointerEvents:"none", zIndex:0, opacity:0.6 }} />
 
       {/* Top bar */}
       <div style={{ width:"100%", maxWidth:isMobile?390:560, position:"relative", zIndex:2,
-        padding:"20px 22px 0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        padding:"18px 18px 0", display:"grid", gridTemplateColumns:"1fr auto 1fr",
+        alignItems:"center", gap:10 }}>
         <button
-          onClick={() => {
-    stopAudio(); setRunning(false);
-    setScreen("setup"); setMaterial(""); setFreqKey("beta");
-    setTimeLeft(25*60); setTotalSecs(25*60); setSessions(0);
-    sessionStartRef.current = null; sessionDurationRef.current = 0;
-    onGoHome?.();
-  }}
+          onClick={() => resetStudyState(true)}
+          aria-label="Back to FocusMind home"
           style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, letterSpacing:"0.1em",
-            color:"#f1f5f9", background:"transparent", border:"none", cursor:"pointer",
-            padding:0, transition:"opacity 0.2s" }}
+            color:"var(--text1,#f1f5f9)", background:"transparent", border:"none", cursor:"pointer",
+            padding:0, transition:"opacity 0.2s", justifySelf:"start" }}
           onMouseEnter={e => e.currentTarget.style.opacity="0.7"}
           onMouseLeave={e => e.currentTarget.style.opacity="1"}
           title="Back to home">
           FOCUS<span style={{ color: freq.color }}>MIND</span>
         </button>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, minWidth:0 }}>
           {screen === "session" && running && (
             <span style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:"var(--text4,#475569)", letterSpacing:"0.06em" }}>
               {fmt(timeLeft)}
@@ -1073,11 +1191,27 @@ export default function App({ onGoHome }) {
             {freq.label} {freq.hz}Hz
           </span>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6, minWidth:0 }}>
+          <LanguageSelector compact />
           <ThemeToggle compact />
+          {(user || isGuest) && (
+            <button
+              onClick={user ? signOut : () => resetStudyState(true)}
+              aria-label={user ? "Sign out" : "Exit guest mode"}
+              title={user ? "Sign out" : "Guest mode"}
+              style={{ padding:"7px 9px", borderRadius:8,
+                border:"1px solid var(--border,rgba(255,255,255,0.09))",
+                background:"var(--bg3,transparent)", color:"var(--text3,#64748b)",
+                cursor:"pointer", fontFamily:"'Space Mono',monospace", fontSize:9,
+                letterSpacing:"0.06em", maxWidth:80, overflow:"hidden", textOverflow:"ellipsis",
+                whiteSpace:"nowrap" }}>
+              {user ? "SIGN OUT" : "GUEST"}
+            </button>
+          )}
           {/* Theme + Mobile toggles */}
         <button
           onClick={() => setIsMobile(m => !m)}
+          aria-label={isMobile ? "Switch preview to desktop width" : "Switch preview to mobile width"}
           title={isMobile ? "Switch to Desktop" : "Switch to Mobile"}
           style={{ width:32, height:32, borderRadius:8, border:`1px solid ${isMobile ? freq.color+"55" : "rgba(255,255,255,0.09)"}`,
             background:isMobile ? freq.color+"12" : "transparent", cursor:"pointer",
@@ -1099,7 +1233,7 @@ export default function App({ onGoHome }) {
               </div>
               <h1 style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(50px,11vw,80px)",
                 lineHeight:0.9, letterSpacing:"0.04em", color:"#f1f5f9" }}>
-                STUDY<br/><span style={{ color:freq.color, textShadow:`0 0 40px ${freq.glow}` }}>SMARTER</span>
+                {t("setup.headline1")}<br/><span style={{ color:freq.color, textShadow:`0 0 40px ${freq.glow}` }}>{t("setup.headline2")}</span>
               </h1>
               <p style={{ color:"var(--muted,#64748b)", fontSize:13, marginTop:14, lineHeight:1.7 }}>
                 AI frequency match · Pomodoro focus · Voice study companion
@@ -1108,12 +1242,19 @@ export default function App({ onGoHome }) {
 
             <div className="glass" style={{ padding:24, marginBottom:12 }}>
               <div style={{ fontSize:9, color:"var(--text5,#64748b)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.18em", marginBottom:10 }}>
-                WHAT ARE YOU STUDYING TODAY?
+                {t("setup.label")}
               </div>
               <textarea rows={4} value={material} onChange={e => setMaterial(e.target.value)}
+                aria-label="Study material" maxLength={2000}
                 placeholder="e.g. Organic chemistry — SN1/SN2 reaction mechanisms for my Friday exam..." />
+              <div style={{ marginTop:7, textAlign:"right", fontSize:9,
+                color:"var(--text5,#64748b)", fontFamily:"'Space Mono',monospace",
+                letterSpacing:"0.08em" }}>
+                {material.length}/2000
+              </div>
               {setupErr && <p style={{ color:"#ff6b6b", fontSize:13, marginTop:8 }}>{setupErr}</p>}
               <button onClick={analyzeMaterial} disabled={analyzing}
+                aria-label="Analyze study material and choose a focus frequency"
                 style={{ marginTop:14, width:"100%", padding:"15px", borderRadius:13, border:"none",
                   background:analyzing ? "rgba(0,229,255,0.07)" : freq.color,
                   color:analyzing ? freq.color : "#020810",
@@ -1121,17 +1262,18 @@ export default function App({ onGoHome }) {
                   fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:11, letterSpacing:"0.07em",
                   display:"flex", alignItems:"center", justifyContent:"center", gap:10, transition:"all 0.2s" }}>
                 {analyzing
-                  ? <><span style={{ width:13, height:13, border:"2px solid currentColor", borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.8s linear infinite" }} />ANALYZING...</>
+                  ? <><span style={{ width:13, height:13, border:"2px solid currentColor", borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.8s linear infinite" }} />MATCHING FREQUENCY + STUDY PLAN...</>
                   : "→ FIND MY FOCUS FREQUENCY"}
               </button>
             </div>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-              {[["Math / Coding","gamma","Math or coding problems"],["Science","beta","Biology or chemistry"],
-                ["Reading","alpha","Reading comprehension"],["Creative","theta","Creative project"]
+              {[["Math / Coding","gamma","Solving calculus derivatives, graph algorithms, and proof-style practice problems."],["Science","beta","Reviewing cellular respiration, enzyme kinetics, and lab terminology for a biology exam."],
+                ["Reading","alpha","Reading a dense history chapter and extracting the main arguments for discussion."],["Creative","theta","Brainstorming a design project, outlining themes, and connecting visual references."]
               ].map(([label, fk, mat]) => (
                 <button key={fk}
-                  onClick={() => { setMaterial(mat); setFreqKey(fk); const d=25*60; setTimeLeft(d); setTotalSecs(d); setScreen("session"); }}
+                  onClick={() => { setMaterial(mat); setFreqKey(fk); setSetupErr(""); }}
+                  aria-label={`Use ${label} example material`}
                   style={{ padding:"11px 13px", borderRadius:12, cursor:"pointer", textAlign:"left",
                     border:`1px solid ${FREQS[fk].color}22`, background:"rgba(6,15,30,0.75)", transition:"all 0.2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"55"; e.currentTarget.style.background=FREQS[fk].color+"0a"; }}
@@ -1151,6 +1293,7 @@ export default function App({ onGoHome }) {
             <div style={{ display:"flex", gap:6, justifyContent:"center", padding:"16px 0 0" }}>
               {Object.entries(PHASES).map(([k, p]) => (
                 <button key={k}
+                  aria-label={`Switch to ${p.label.toLowerCase()}`}
                   onClick={() => { setRunning(false); stopAudio(); setPomPhase(k); setFreqKey(p.freqKey); const d=p.mins*60; setTimeLeft(d); setTotalSecs(d); }}
                   style={{ padding:"6px 13px", borderRadius:999, border:"1px solid", cursor:"pointer",
                     fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.07em",
@@ -1165,6 +1308,7 @@ export default function App({ onGoHome }) {
             {/* Blob timer canvas */}
             <div style={{ position:"relative", width:"100%", height:isMobile?300:340 }}>
               <canvas ref={blobCanvasRef} width={isMobile?390:560} height={isMobile?300:340}
+                aria-hidden="true"
                 style={{ position:"absolute", inset:0, width:"100%", height:"100%" }} />
               {/* Timer overlay */}
               <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
@@ -1196,12 +1340,12 @@ export default function App({ onGoHome }) {
 
             {/* Spectrum canvas */}
             <div style={{ borderRadius:14, overflow:"hidden", background:"rgba(2,8,16,0.6)", border:"1px solid rgba(255,255,255,0.04)", marginTop:-8 }}>
-              <canvas ref={specCanvasRef} width={isMobile?390:560} height={68} style={{ width:"100%", height:68, display:"block" }} />
+              <canvas ref={specCanvasRef} width={isMobile?390:560} height={68} aria-hidden="true" style={{ width:"100%", height:68, display:"block" }} />
             </div>
 
             {/* Controls */}
             <div style={{ padding:"16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", gap:14 }}>
-              <button style={iconBtn()} onClick={() => { setRunning(false); stopAudio(); setTimeLeft(totalSecs); }}
+              <button style={iconBtn()} aria-label="Reset timer" onClick={() => { setRunning(false); stopAudio(); setTimeLeft(totalSecs); }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.22)"; e.currentTarget.style.color="#94a3b8"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.09)"; e.currentTarget.style.color="#475569"; }}>
                 ↺
@@ -1209,6 +1353,7 @@ export default function App({ onGoHome }) {
 
               {/* Play button */}
               <button onClick={togglePlay}
+                aria-label={running ? "Pause timer" : "Start timer"}
                 style={{ width:72, height:72, borderRadius:"50%", cursor:"pointer",
                   border:`2px solid ${freq.color}`, background:running ? freq.color+"18" : "transparent",
                   color:freq.color, fontSize:25, display:"flex", alignItems:"center", justifyContent:"center",
@@ -1220,6 +1365,7 @@ export default function App({ onGoHome }) {
 
               {/* Mic / voice button */}
               <button onClick={openVoice}
+                aria-label="Open voice companion"
                 style={{ width:44, height:44, borderRadius:"50%", cursor:"pointer",
                   border:`1px solid ${freq.color}55`, background:voiceCount > 0 ? freq.color+"14" : "transparent",
                   color:freq.color, fontSize:17, display:"flex", alignItems:"center", justifyContent:"center",
@@ -1236,7 +1382,7 @@ export default function App({ onGoHome }) {
                 )}
               </button>
 
-              <button style={iconBtn()} onClick={triggerDebrief}
+              <button style={iconBtn()} aria-label="Skip to debrief" onClick={triggerDebrief}
                 onMouseEnter={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.22)"; e.currentTarget.style.color="#94a3b8"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.09)"; e.currentTarget.style.color="#475569"; }}>
                 ⏭
@@ -1268,7 +1414,7 @@ export default function App({ onGoHome }) {
             <div className="glass" style={{ marginTop:14, padding:14 }}>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:7 }}>
                 {Object.entries(FREQS).map(([k, f]) => (
-                  <button key={k} onClick={() => { setFreqKey(k); if (audioOn) startAudio(k, volume); }}
+                  <button key={k} aria-label={`Switch frequency to ${f.label} ${f.hz} hertz`} onClick={() => { setFreqKey(k); if (audioOn) startAudio(k, volume); }}
                     style={{ padding:"9px 5px", borderRadius:10, cursor:"pointer", textAlign:"center",
                       border:`1px solid ${freqKey===k ? f.color+"55" : "rgba(255,255,255,0.05)"}`,
                       background:freqKey===k ? f.color+"0e" : "transparent", transition:"all 0.2s" }}>
@@ -1282,7 +1428,8 @@ export default function App({ onGoHome }) {
               {aiReason && <p style={{ fontSize:12, color:"var(--muted,#64748b)", marginTop:11, lineHeight:1.6, borderTop:"1px solid rgba(255,255,255,0.04)", paddingTop:11 }}>{aiReason}</p>}
             </div>
 
-            <button onClick={() => { stopAudio(); setRunning(false); setScreen("setup"); }}
+            <button onClick={() => resetStudyState(false)}
+              aria-label="Change study material"
               style={{ marginTop:10, width:"100%", padding:"10px", borderRadius:12,
                 border:"1px solid rgba(255,255,255,0.05)", background:"transparent",
                 color:"var(--muted,#64748b)", cursor:"pointer", fontFamily:"'Space Mono',monospace",
@@ -1320,7 +1467,7 @@ export default function App({ onGoHome }) {
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 {/* Audio paused indicator */}
-                {wasRunningRef.current && (
+                {audioWasPaused && (
                   <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px",
                     borderRadius:999, background:"rgba(255,165,0,0.08)",
                     border:"1px solid rgba(255,165,0,0.25)" }}>
@@ -1330,6 +1477,7 @@ export default function App({ onGoHome }) {
                   </div>
                 )}
                 <button onClick={closeVoice}
+                  aria-label="Close voice companion"
                   style={{ width:34, height:34, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.1)",
                     background:"transparent", cursor:"pointer", color:"#475569", fontSize:14,
                     display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" }}
@@ -1360,7 +1508,7 @@ export default function App({ onGoHome }) {
 
             {/* Orb */}
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"4px 0 2px" }}>
-              <canvas ref={orbCanvasRef} width={220} height={220} style={{ width:220, height:220 }} />
+              <canvas ref={orbCanvasRef} width={220} height={220} aria-hidden="true" style={{ width:220, height:220 }} />
               {/* State label */}
               <div style={{ height:24, display:"flex", alignItems:"center", justifyContent:"center" }}>
                 {voiceState === "idle"      && <span style={{ fontSize:10, color:"var(--text4,#475569)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.1em" }}>{isContinuous ? "MIC PAUSED" : "TAP MIC TO ASK"}</span>}
@@ -1386,7 +1534,7 @@ export default function App({ onGoHome }) {
 
             {/* Conversation scroll */}
             <div style={{ maxHeight:200, overflowY:"auto", display:"flex", flexDirection:"column",
-              gap:7, padding:"6px 0 10px" }} ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
+              gap:7, padding:"6px 0 10px", scrollBehavior:"smooth" }} ref={chatScrollRef}>
               {messages.length === 0 && (
                 <div style={{ textAlign:"center", padding:"12px 0", color:"var(--muted,#64748b)", fontSize:13, lineHeight:1.7 }}>
                   Ask anything about your material.<br/>
@@ -1405,16 +1553,28 @@ export default function App({ onGoHome }) {
                   </div>
                 </div>
               ))}
+              {voiceState === "thinking" && (
+                <div className="msg" style={{ display:"flex", justifyContent:"flex-start" }}>
+                  <div aria-label="AI is typing" style={{ display:"flex", gap:4, alignItems:"center",
+                    padding:"10px 13px", borderRadius:13, borderBottomLeftRadius:4,
+                    background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)",
+                    color:freq.color }}>
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                  </div>
+                </div>
+              )}
               {/* Follow-up suggestion chip */}
               {followUpLoading && (
-                <div style={{ display:"flex", justifyContent:"flex-start", paddingLeft:4 }}>
+                <div className="chip-in" style={{ display:"flex", justifyContent:"flex-start", paddingLeft:4 }}>
                   <div style={{ padding:"5px 12px", borderRadius:999, background:"rgba(255,255,255,0.02)",
                     border:"1px solid rgba(255,255,255,0.06)", fontSize:11, color:"var(--muted,#64748b)",
                     fontFamily:"'Space Mono',monospace", letterSpacing:"0.06em" }}>...</div>
                 </div>
               )}
               {followUp && !followUpLoading && (
-                <div className="msg" style={{ display:"flex", justifyContent:"flex-start", gap:6, alignItems:"center", paddingLeft:2 }}>
+                <div className="msg chip-in" style={{ display:"flex", justifyContent:"flex-start", gap:6, alignItems:"center", paddingLeft:2 }}>
                   <span style={{ fontSize:11, color:"var(--muted,#64748b)",
                     fontFamily:"'Space Mono',monospace", letterSpacing:"0.06em", flexShrink:0 }}>
                     {followUp.type === "question" ? "💡" : "⚡"}
@@ -1462,6 +1622,7 @@ export default function App({ onGoHome }) {
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
                   <button
                     onClick={voiceState === "listening" && !isContinuous ? stopListening : startListening}
+                    aria-label={voiceState === "listening" && !isContinuous ? "Stop listening" : "Start voice input"}
                     disabled={isContinuous || voiceState === "thinking" || voiceState === "speaking"}
                     style={{ width:64, height:64, borderRadius:"50%", cursor: isContinuous ? "not-allowed" : "pointer",
                       border:`2px solid ${!isContinuous && voiceState==="listening" ? freq.color : "rgba(255,255,255,0.14)"}`,
@@ -1482,6 +1643,7 @@ export default function App({ onGoHome }) {
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
                   <button
                     onClick={toggleContinuous}
+                    aria-label={isContinuous ? "Turn continuous listening off" : "Turn continuous listening on"}
                     disabled={voiceState === "thinking"}
                     style={{ width:64, height:64, borderRadius:"50%", cursor:"pointer",
                       border:`2px solid ${isContinuous ? freq.color : "rgba(255,255,255,0.14)"}`,
@@ -1506,6 +1668,7 @@ export default function App({ onGoHome }) {
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <input
                 type="text"
+                aria-label="Type a question for the voice companion"
                 placeholder="Or type your question here..."
                 value={textInput}
                 onChange={e => setTextInput(e.target.value)}
@@ -1517,6 +1680,7 @@ export default function App({ onGoHome }) {
                   opacity: voiceState === "thinking" || voiceState === "speaking" ? 0.4 : 1 }} />
               <button
                 onClick={sendTextMessage}
+                aria-label="Send typed question"
                 disabled={!textInput.trim() || voiceState === "thinking" || voiceState === "speaking"}
                 style={{ padding:"10px 16px", borderRadius:11, border:"none", cursor:"pointer",
                   background:textInput.trim() ? freq.color : "rgba(255,255,255,0.05)",
@@ -1528,6 +1692,7 @@ export default function App({ onGoHome }) {
             </div>
 
             <button onClick={closeVoice}
+              aria-label="Back to timer"
               style={{ width:"100%", padding:"11px", borderRadius:12,
                 border:`1px solid ${freq.color}33`, background:"transparent", color:freq.color,
                 cursor:"pointer", fontFamily:"'Space Mono',monospace", fontSize:10, letterSpacing:"0.08em" }}>
@@ -1563,9 +1728,20 @@ export default function App({ onGoHome }) {
                 <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:38, color:"#f1f5f9", letterSpacing:"0.04em", marginBottom:4 }}>HOW WAS YOUR FOCUS?</div>
                 {voiceCount > 0 && <p style={{ fontSize:12, color:freq.color, fontFamily:"'Space Mono',monospace", letterSpacing:"0.05em", marginBottom:10 }}>🎤 {voiceCount} voice questions logged</p>}
                 <p style={{ color:"var(--muted,#64748b)", fontSize:13, marginBottom:24 }}>Be honest — helps your AI coach</p>
-                <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
+                <div role="radiogroup" aria-label="Focus rating" style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
                   {[1,2,3,4,5].map(n => (
                     <button key={n} onClick={() => setFocusRating(n)}
+                      aria-label={`${n} out of 5 focus rating`}
+                      aria-checked={focusRating === n}
+                      role="radio"
+                      onKeyDown={e => {
+                        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                          e.preventDefault(); setFocusRating(Math.min(5, (focusRating || 1) + 1));
+                        }
+                        if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                          e.preventDefault(); setFocusRating(Math.max(1, (focusRating || 1) - 1));
+                        }
+                      }}
                       onMouseEnter={() => setHoverRating(n)} onMouseLeave={() => setHoverRating(0)}
                       style={{ background:"transparent", border:"none", cursor:"pointer", fontSize:32, padding:"0 3px",
                         transition:"transform 0.15s", transform:n <= (hoverRating || focusRating) ? "scale(1.15)" : "scale(1)" }}>
@@ -1590,7 +1766,8 @@ export default function App({ onGoHome }) {
             {debriefStep === "covered" && (
               <div className="fade glass" style={{ padding:24 }}>
                 <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:"#f1f5f9", letterSpacing:"0.04em", marginBottom:13 }}>WHAT DID YOU COVER?</div>
-                <textarea rows={4} value={covered} onChange={e => setCovered(e.target.value)}
+                <textarea ref={coveredRef} rows={4} value={covered} onChange={e => setCovered(e.target.value)}
+                  aria-label="Topics covered this session"
                   placeholder="Which specific topics did you work through this session?" />
                 {/* Quiz question count picker */}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:13, marginBottom:4 }}>
@@ -1665,12 +1842,16 @@ export default function App({ onGoHome }) {
                           <div style={{ marginTop:10, padding:"9px 13px", borderRadius:9,
                             background:answers[qi]===q.answer ? "rgba(0,255,179,0.06)" : "rgba(255,107,107,0.05)",
                             border:`1px solid ${answers[qi]===q.answer ? "#00ffb333" : "#ff6b6b33"}` }}>
+                            <div style={{ fontSize:8, marginBottom:4, fontFamily:"'Space Mono',monospace",
+                              letterSpacing:"0.1em", color:answers[qi]===q.answer ? "#00ffb3" : "#ff8080" }}>
+                              {answers[qi]===q.answer ? "CORRECT" : "REVIEW"}
+                            </div>
                             <p style={{ fontSize:12, lineHeight:1.6, color:answers[qi]===q.answer ? "#00ffb3" : "#ff8080" }}>{q.explanation}</p>
                           </div>
                         )}
                       </div>
                     ))}
-                    {Object.keys(revealed).length === quizData.length && (
+                    {currentRoundComplete && (
                       <div className="fade glass" style={{ padding:20 }}>
                         {/* Score row */}
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
@@ -1679,10 +1860,10 @@ export default function App({ onGoHome }) {
                               ROUND {quizRound} · {quizDifficulty.toUpperCase()}
                             </div>
                             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:42, color:freq.color, lineHeight:1 }}>
-                              {scoreCount}<span style={{ fontSize:20, color:"var(--muted,#64748b)" }}>/{quizData.length}</span>
+                              {scoreCount}<span style={{ fontSize:20, color:"var(--muted,#64748b)" }}>/{currentRoundTotal}</span>
                             </div>
                           </div>
-                          <span style={{ fontSize:38 }}>{scoreCount === quizData.length ? "🎯" : scoreCount >= quizData.length/2 ? "⚡" : "📚"}</span>
+                          <span style={{ fontSize:38 }}>{scoreCount === currentRoundTotal ? "🎯" : scoreCount >= currentRoundTotal/2 ? "⚡" : "📚"}</span>
                         </div>
                         {/* Quiz history mini-log */}
                         {quizHistory.length > 0 && (
@@ -1701,8 +1882,8 @@ export default function App({ onGoHome }) {
                           fontFamily:"'Space Mono',monospace", letterSpacing:"0.06em" }}>
                           {(() => {
                             const nextD = quizHistory.length > 0
-                              ? computeDifficulty([...quizHistory, {score:scoreCount, total:quizData.length}])
-                              : scoreCount/quizData.length >= 0.8 ? "hard" : scoreCount/quizData.length >= 0.5 ? "medium" : "easy";
+                              ? computeDifficulty([...quizHistory, {score:scoreCount, total:currentRoundTotal}])
+                              : scoreCount/currentRoundTotal >= 0.8 ? "hard" : scoreCount/currentRoundTotal >= 0.5 ? "medium" : "easy";
                             return `Next round difficulty → ${nextD.toUpperCase()}`;
                           })()}
                         </div>
@@ -1742,7 +1923,9 @@ export default function App({ onGoHome }) {
                   </>
                 ) : (
                   <div className="glass" style={{ padding:26, textAlign:"center" }}>
-                    <p style={{ color:"var(--muted,#64748b)", fontSize:14, marginBottom:13 }}>Couldn't generate quiz. Let's get your insight.</p>
+                    <p style={{ color:"var(--muted,#64748b)", fontSize:14, marginBottom:13 }}>{quizError || "Couldn't generate quiz."}</p>
+                    <button onClick={() => loadQuiz(false)}
+                      style={{ marginRight:8, padding:"11px 18px", borderRadius:11, border:`1px solid ${freq.color}44`, background:"transparent", color:freq.color, cursor:"pointer", fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:11 }}>RETRY QUIZ</button>
                     <button onClick={loadInsight}
                       style={{ padding:"11px 22px", borderRadius:11, border:"none", background:freq.color, color:"#020810", cursor:"pointer", fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:11 }}>GET INSIGHT →</button>
                   </div>
@@ -1762,7 +1945,7 @@ export default function App({ onGoHome }) {
 
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:16 }}>
                     {[{l:"FOCUS",v:["","★","★★","★★★","★★★★","★★★★★"][focusRating]||"—"},
-                      {l:"QUIZ",v:`${scoreCount}/${quizData?.length||0}`},
+                      {l:"QUIZ",v:`${scoreCount}/${currentRoundTotal || quizData?.length || 0}`},
                       {l:"VOICE",v:`${voiceCount}Q`},
                       {l:"SESSION",v:`#${sessions}`}
                     ].map(item => (
@@ -1789,6 +1972,18 @@ export default function App({ onGoHome }) {
                       <div style={{ width:26, height:26, border:`2px solid ${freq.color}33`, borderTopColor:freq.color, borderRadius:"50%", margin:"0 auto 12px", animation:"spin 0.9s linear infinite" }} />
                       <p style={{ color:"var(--muted,#64748b)", fontSize:13 }}>Analyzing your session...</p>
                     </div>
+                  ) : insightError ? (
+                    <div style={{ padding:"18px 0", textAlign:"center" }}>
+                      <p style={{ color:"#ff8080", fontSize:13, lineHeight:1.6, marginBottom:12 }}>
+                        {insightError}
+                      </p>
+                      <button onClick={loadInsight}
+                        style={{ padding:"11px 20px", borderRadius:11, border:"none",
+                          background:freq.color, color:"#020810", cursor:"pointer",
+                          fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:11 }}>
+                        RETRY INSIGHT
+                      </button>
+                    </div>
                   ) : (
                     <>
                       <div style={{ padding:"14px 16px", borderRadius:12, marginBottom:14, background:`${freq.color}08`, border:`1px solid ${freq.color}1a` }}>
@@ -1799,10 +1994,10 @@ export default function App({ onGoHome }) {
                         </p>
                       </div>
 
-                      {sessionLog.length > 1 && (
+                      {recentSessionItems.length > 0 && (
                         <div style={{ marginBottom:14 }}>
                           <div style={{ fontSize:8, color:"var(--text5,#64748b)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.14em", marginBottom:8 }}>RECENT SESSIONS</div>
-                          {sessionLog.slice(-3).reverse().map((s, i) => (
+                          {recentSessionItems.map((s, i) => (
                             <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:8, marginBottom:5, background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.04)" }}>
                               <span style={{ fontSize:9, color:freq.color, fontFamily:"'Space Mono',monospace", minWidth:18 }}>#{s.session}</span>
                               <span style={{ fontSize:11, color:"var(--text4,#475569)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.nextFocus}</span>
@@ -1818,7 +2013,7 @@ export default function App({ onGoHome }) {
                           style={{ flex:1, padding:"13px", borderRadius:12, border:"none", background:FREQS.theta.color, color:"#020810", cursor:"pointer", fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:10, letterSpacing:"0.06em" }}>
                           → {sessions%4===0?15:5}min BREAK
                         </button>
-                        <button onClick={() => { setPomPhase("focus"); setFreqKey("beta"); const d=25*60; setTimeLeft(d); setTotalSecs(d); setScreen("session"); setTimeout(() => { setRunning(true); startAudio("beta", volume); }, 300); }}
+                        <button onClick={() => { setPomPhase("focus"); setFreqKey("beta"); const d=25*60; setTimeLeft(d); setTotalSecs(d); setScreen("session"); setTimeout(() => { sessionStartRef.current = Date.now(); setRunning(true); startAudio("beta", volume); }, 300); }}
                           style={{ padding:"13px 14px", borderRadius:12, cursor:"pointer", border:`1px solid ${freq.color}44`, background:"transparent", color:freq.color, fontFamily:"'Space Mono',monospace", fontSize:10, letterSpacing:"0.06em" }}>
                           SKIP →
                         </button>
@@ -1830,7 +2025,8 @@ export default function App({ onGoHome }) {
             )}
 
             {debriefStep !== "insight" && (
-              <button onClick={() => { setScreen("setup"); stopAudio(); setRunning(false); }}
+              <button onClick={() => resetStudyState(false)}
+                aria-label="Back to setup"
                 style={{ padding:"10px", borderRadius:11, border:"1px solid rgba(255,255,255,0.05)", background:"transparent", color:"var(--text5,#64748b)", cursor:"pointer", fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.1em", transition:"all 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.color="#334155"; e.currentTarget.style.borderColor="rgba(255,255,255,0.12)"; }}
                 onMouseLeave={e => { e.currentTarget.style.color="#0f2744"; e.currentTarget.style.borderColor="rgba(255,255,255,0.05)"; }}>

@@ -27,7 +27,7 @@ function loadKaTeX() {
 }
 
 // ── Detect if text contains LaTeX ─────────────────────────────────────────
-export function hasMath(text = "") {
+function hasMath(text = "") {
   return /\$\$[\s\S]+?\$\$|\$[^$]+?\$|\\[a-zA-Z]+\{/.test(text);
 }
 
@@ -61,7 +61,7 @@ function KaTeXSpan({ expr, display }) {
         errorColor: "#ff6b6b",
         trust: false,
       });
-    } catch (_) {
+    } catch {
       if (ref.current) ref.current.textContent = expr;
     }
   }, [expr, display]);
@@ -89,7 +89,10 @@ export default function MathRenderer({ text = "", style = {} }) {
 
   useEffect(() => {
     if (!hasMath(text)) return;
-    if (katexLoaded) { setReady(true); return; }
+    if (katexLoaded) {
+      const id = setTimeout(() => setReady(true), 0);
+      return () => clearTimeout(id);
+    }
     loadKaTeX()
       .then(() => setReady(true))
       .catch(() => setReady(false));

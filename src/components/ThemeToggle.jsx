@@ -1,11 +1,12 @@
-import { useTheme, THEMES } from "../theme/ThemeContext";
+import { useTheme } from "../theme/ThemeContext";
 
 export default function ThemeToggle({ compact = false }) {
-  const { themeKey, cycleTheme, theme } = useTheme();
+  const { cycleTheme, theme } = useTheme();
 
   return (
     <button
       onClick={cycleTheme}
+      aria-label={`Switch theme. Current theme: ${theme.name}`}
       title={`Theme: ${theme.name} — click to switch`}
       style={{
         width: compact ? 30 : 36,

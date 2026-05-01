@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
@@ -52,11 +51,11 @@ export default function LoginScreen() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#020810",
+      minHeight: "100vh", background: "var(--bg,#020810)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "24px", position: "relative", overflow: "hidden",
-      fontFamily: "'DM Sans', sans-serif", color: "#e2e8f0",
+      fontFamily: "'DM Sans', sans-serif", color: "var(--text1,#e2e8f0)",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
@@ -67,15 +66,19 @@ export default function LoginScreen() {
           background-size:44px 44px;}
         .orb{position:fixed;border-radius:50%;filter:blur(140px);pointer-events:none;}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-        .card{animation:fadeUp 0.5s ease both;background:rgba(6,15,30,0.88);
-          border:1px solid rgba(255,255,255,0.08);border-radius:22px;
+        .card{animation:fadeUp 0.5s ease both;background:var(--panel,rgba(6,15,30,0.88));
+          border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:22px;
           backdrop-filter:blur(20px);padding:36px 32px;width:100%;max-width:400px;}
-        .google-btn-wrap > div > div { justify-content: center !important; }
-        .guest-btn{width:100%;padding:13px;borderRadius:12px;border:1px solid rgba(255,255,255,0.1);
-          background:transparent;color:#64748b;cursor:pointer;
+        .auth-btn{width:100%;padding:13px;border-radius:999px;border:none;
+          background:${FREQ_COLOR};color:#020810;cursor:pointer;
+          font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.07em;
+          transition:all 0.2s;}
+        .auth-btn:disabled{opacity:0.6;cursor:not-allowed;}
+        .guest-btn{width:100%;padding:13px;border-radius:12px;border:1px solid var(--border,rgba(255,255,255,0.1));
+          background:transparent;color:var(--text2,#64748b);cursor:pointer;
           font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.07em;
           transition:all 0.2s;}
-        .guest-btn:hover{border-color:rgba(255,255,255,0.22);color:#94a3b8;}
+        .guest-btn:hover{border-color:rgba(255,255,255,0.22);color:var(--text1,#94a3b8);}
         .divider{display:flex;align-items:center;gap:12px;margin:18px 0;}
         .divider-line{flex:1;height:1px;background:rgba(255,255,255,0.07);}
         .divider-text{font-family:'Space Mono',monospace;font-size:9px;
@@ -94,7 +97,7 @@ export default function LoginScreen() {
       <div className="card">
         {/* Orb */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
-          <canvas ref={canvasRef} width={200} height={200} style={{ width:200, height:200 }} />
+          <canvas ref={canvasRef} width={200} height={200} aria-hidden="true" style={{ width:200, height:200 }} />
         </div>
 
         {/* App name */}
@@ -121,17 +124,9 @@ export default function LoginScreen() {
         {/* The credential from GoogleLogin is a Google ID token (JWT).
             It is passed to Supabase signInWithIdToken — GOOGLE_CLIENT_SECRET
             is verified by Supabase server-side and never touches this code. */}
-        <div className="google-btn-wrap" style={{ display:"flex", justifyContent:"center", marginBottom:8 }}>
-          <GoogleLogin
-            onSuccess={signInWithGoogle}
-            onError={() => {}}
-            theme="filled_black"
-            shape="pill"
-            size="large"
-            text="continue_with"
-            width="320"
-          />
-        </div>
+        <button className="auth-btn" onClick={signInWithGoogle} disabled={loading} aria-label={t("auth.signInWithGoogle")}>
+          {t("auth.signInWithGoogle")}
+        </button>
 
         {/* Divider */}
         <div className="divider">
@@ -141,7 +136,7 @@ export default function LoginScreen() {
         </div>
 
         {/* Guest mode */}
-        <button className="guest-btn" onClick={continueAsGuest}>
+        <button className="guest-btn" onClick={continueAsGuest} aria-label={t("auth.continueAsGuest")}>
           {t("auth.continueAsGuest")}
         </button>
 

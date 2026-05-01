@@ -166,7 +166,7 @@ export async function getDashboardData(userId) {
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase
       .from("study_sessions")
-      .select("material, freq_key, duration_seconds, focus_rating, created_at")
+      .select("material, freq_key, duration_seconds, focus_rating, voice_questions, ai_insight, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20),
@@ -185,32 +185,56 @@ export async function getDashboardData(userId) {
   };
 }
 
+export async function getRecentStudySessions(userId, limit = 3) {
+  const { data, error } = await supabase
+    .from("study_sessions")
+    .select("id, material, freq_key, focus_rating, voice_questions, ai_insight, next_focus_topic, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
 // ── Guest → Auth migration ────────────────────────────────────────────────
 /**
  * Called once when a guest user signs in.
  * Reads guest data from localStorage and writes it to the DB.
  */
 const GUEST_KEY = "focusmind_guest_sessions";
+const migratedKey = (userId) => `focusmind_guest_migrated_${userId}`;
 
 export function saveGuestSession(sessionData) {
   try {
     const existing = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
     existing.push({ ...sessionData, timestamp: Date.now() });
     localStorage.setItem(GUEST_KEY, JSON.stringify(existing.slice(-20))); // keep last 20
-  } catch (_) {}
+  } catch {
+    /* localStorage can be unavailable in private or locked-down contexts */
+  }
 }
 
 export async function migrateGuestData(userId) {
   try {
+    const key = migratedKey(userId);
+    if (localStorage.getItem(key) === "true") return;
     const raw = localStorage.getItem(GUEST_KEY);
-    if (!raw) return;
+    if (!raw) {
+      localStorage.setItem(key, "true");
+      return;
+    }
     const sessions = JSON.parse(raw);
-    if (!sessions.length) return;
+    if (!sessions.length) {
+      localStorage.setItem(key, "true");
+      return;
+    }
 
     for (const s of sessions) {
       await saveStudySession({ userId, ...s }).catch(() => {});
     }
     localStorage.removeItem(GUEST_KEY);
+    localStorage.setItem(key, "true");
     console.log(`Migrated ${sessions.length} guest session(s) to account.`);
   } catch (e) {
     console.warn("Guest migration failed:", e.message);

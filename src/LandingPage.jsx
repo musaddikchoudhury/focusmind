@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./auth/AuthContext";
+import { useTranslation } from "react-i18next";
 import { LegalLinks } from "./components/LegalModal";
 import UserDashboard from "./components/UserDashboard";
+import ThemeToggle from "./components/ThemeToggle";
+import LanguageSelector from "./components/LanguageSelector";
 
 const FREQ_COLORS = ["#00e5ff", "#ff4d1a", "#b57bee", "#00ffb3"];
 
@@ -31,7 +34,7 @@ function useInView(threshold = 0.15) {
     const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setInView(true); }, { threshold });
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
-  }, []);
+  }, [threshold]);
   return [ref, inView];
 }
 
@@ -55,7 +58,6 @@ function HeroOrb() {
 
       // Outer glow rings
       for (let ring = 0; ring < 4; ring++) {
-        const phase = (t * 0.6 + ring * 0.9) % (Math.PI * 2);
         const r = 130 + ring * 22 + Math.sin(t * 1.2 + ring) * 8;
         const alpha = 0.06 - ring * 0.01;
         ctx.beginPath();
@@ -125,7 +127,7 @@ function HeroOrb() {
   }, []);
 
   return (
-    <canvas ref={canvasRef} width={380} height={380}
+    <canvas ref={canvasRef} width={380} height={380} aria-hidden="true"
       style={{ width: "min(380px, 85vw)", height: "min(380px, 85vw)", filter: "drop-shadow(0 0 40px rgba(0,229,255,0.25))" }} />
   );
 }
@@ -139,8 +141,8 @@ function FeatureCard({ icon, title, desc, color, delay }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: hovered ? `rgba(6,18,36,0.95)` : "rgba(6,15,30,0.8)",
-        border: `1px solid ${hovered ? color + "55" : "rgba(255,255,255,0.07)"}`,
+        background: hovered ? "var(--bg3,rgba(6,18,36,0.95))" : "var(--panel,rgba(6,15,30,0.8))",
+        border: `1px solid ${hovered ? color + "55" : "var(--border,rgba(255,255,255,0.07))"}`,
         borderRadius: 20, padding: "28px 24px",
         transition: "all 0.3s cubic-bezier(0.16,1,0.3,1)",
         transform: inView ? "translateY(0)" : "translateY(24px)",
@@ -153,8 +155,8 @@ function FeatureCard({ icon, title, desc, color, delay }) {
         border: `1px solid ${color}33`, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 22, marginBottom: 16 }}>{icon}</div>
       <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: "0.05em",
-        color: "#f1f5f9", marginBottom: 8 }}>{title}</div>
-      <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.7 }}>{desc}</p>
+        color: "var(--text1,#f1f5f9)", marginBottom: 8 }}>{title}</div>
+      <p style={{ fontSize: 14, color: "var(--text3,#475569)", lineHeight: 1.7 }}>{desc}</p>
       <div style={{ marginTop: 16, height: 2, borderRadius: 1,
         background: `linear-gradient(to right, ${color}66, transparent)`,
         width: hovered ? "100%" : "40%", transition: "width 0.4s ease" }} />
@@ -179,8 +181,8 @@ function StepCard({ num, title, desc, color, delay }) {
       </div>
       <div>
         <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: "0.05em",
-          color: "#f1f5f9", marginBottom: 6 }}>{title}</div>
-        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.7 }}>{desc}</p>
+          color: "var(--text1,#f1f5f9)", marginBottom: 6 }}>{title}</div>
+        <p style={{ fontSize: 14, color: "var(--text3,#475569)", lineHeight: 1.7 }}>{desc}</p>
       </div>
     </div>
   );
@@ -191,21 +193,21 @@ function Testimonial({ quote, name, role, avatar, delay }) {
   const [ref, inView] = useInView();
   return (
     <div ref={ref} style={{
-      background: "rgba(6,15,30,0.8)", border: "1px solid rgba(255,255,255,0.07)",
+      background: "var(--panel,rgba(6,15,30,0.8))", border: "1px solid var(--border,rgba(255,255,255,0.07))",
       borderRadius: 18, padding: "24px 22px",
       transform: inView ? "translateY(0)" : "translateY(20px)",
       opacity: inView ? 1 : 0,
       transition: `all 0.5s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
     }}>
       <div style={{ fontSize: 28, color: "#00e5ff", marginBottom: 12, opacity: 0.4, fontFamily: "Georgia, serif" }}>"</div>
-      <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.75, marginBottom: 18, fontStyle: "italic" }}>{quote}</p>
+      <p style={{ fontSize: 14, color: "var(--text2,#94a3b8)", lineHeight: 1.75, marginBottom: 18, fontStyle: "italic" }}>{quote}</p>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, #00e5ff22, #b57bee22)`,
           border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center",
           justifyContent: "center", fontSize: 16 }}>{avatar}</div>
         <div>
-          <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{name}</div>
-          <div style={{ fontSize: 11, color: "#334155", fontFamily: "'Space Mono',monospace", letterSpacing: "0.04em" }}>{role}</div>
+          <div style={{ fontSize: 13, color: "var(--text1,#e2e8f0)", fontWeight: 500 }}>{name}</div>
+          <div style={{ fontSize: 11, color: "var(--text3,#334155)", fontFamily: "'Space Mono',monospace", letterSpacing: "0.04em" }}>{role}</div>
         </div>
       </div>
     </div>
@@ -214,7 +216,8 @@ function Testimonial({ quote, name, role, avatar, delay }) {
 
 // ══════════════════════════════════════════════════════════════════════════
 export default function LandingPage({ onLaunch }) {
-  const { authError, user, signInWithGoogle, signOut } = useAuth();
+  const { authError, user, signInWithGoogle, signOut, continueAsGuest } = useAuth();
+  const { t } = useTranslation();
   const [scrollY, setScrollY] = useState(0);
   const [launching, setLaunching] = useState(false);
   const [statsInView, setStatsInView] = useState(false);
@@ -224,7 +227,11 @@ export default function LandingPage({ onLaunch }) {
   const [signInErr, setSignInErr] = useState("");
 
   // If user just signed in via the modal, close it
-  useEffect(() => { if (user) setShowLogin(false); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const id = setTimeout(() => setShowLogin(false), 0);
+    return () => clearTimeout(id);
+  }, [user]);
   const statsRef = useRef(null);
   const heroRef = useRef(null);
 
@@ -246,12 +253,13 @@ export default function LandingPage({ onLaunch }) {
   }, []);
 
   const handleLaunch = () => {
+    if (!user) continueAsGuest();
     setLaunching(true);
     setTimeout(() => onLaunch(), 800);
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#020810", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "var(--bg,#020810)", color: "var(--text1,#e2e8f0)",
       fontFamily: "'DM Sans', sans-serif", overflowX: "hidden",
       overflowY: launching ? "hidden" : "auto" }}>
 
@@ -268,13 +276,13 @@ export default function LandingPage({ onLaunch }) {
 
         /* Launch overlay */
         .launch-overlay{position:fixed;inset:0;background:#00e5ff;z-index:100;
-          transform:scaleY(0);transform-origin:bottom;transition:transform 0.7s cubic-bezier(0.76,0,0.24,1);}
+          transform:scaleY(0);transform-origin:bottom;transition:transform 0.85s cubic-bezier(0.16,1,0.3,1);}
         .launch-overlay.active{transform:scaleY(1);}
 
         /* Nav */
         .lp-nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:all 0.3s;}
-        .lp-nav.scrolled{background:rgba(2,8,16,0.92);backdrop-filter:blur(20px);
-          border-bottom:1px solid rgba(255,255,255,0.06);}
+        .lp-nav.scrolled{background:var(--glass,rgba(2,8,16,0.92));backdrop-filter:blur(20px);
+          border-bottom:1px solid var(--border,rgba(255,255,255,0.06));}
 
         /* Gradient text */
         .grad-text{background:linear-gradient(135deg,#00e5ff,#b57bee 50%,#ff4d1a);
@@ -293,19 +301,19 @@ export default function LandingPage({ onLaunch }) {
         .cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,229,255,0.35);}
 
         /* Secondary button */
-        .sec-btn{cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:transparent;
+        .sec-btn{cursor:pointer;border:1px solid var(--border,rgba(255,255,255,0.12));background:transparent;
           font-family:"Space Mono",monospace;font-size:12px;letter-spacing:0.07em;
-          color:#64748b;transition:all 0.2s;}
-        .sec-btn:hover{border-color:rgba(255,255,255,0.25);color:#94a3b8;}
+          color:var(--text3,#64748b);transition:all 0.2s;}
+        .sec-btn:hover{border-color:var(--border2,rgba(255,255,255,0.25));color:var(--text2,#94a3b8);}
 
         /* Stat card */
-        .stat-card{background:rgba(6,15,30,0.8);border:1px solid rgba(255,255,255,0.07);
+        .stat-card{background:var(--panel,rgba(6,15,30,0.8));border:1px solid var(--border,rgba(255,255,255,0.07));
           border-radius:18px;padding:28px 24px;text-align:center;transition:all 0.3s;}
         .stat-card:hover{border-color:rgba(0,229,255,0.25);transform:translateY(-3px);}
 
         /* Nav link */
-        .nav-link{color:#475569;font-size:13px;text-decoration:none;transition:color 0.2s;cursor:pointer;}
-        .nav-link:hover{color:#e2e8f0;}
+        .nav-link{color:var(--text3,#475569);font-size:13px;text-decoration:none;transition:color 0.2s;cursor:pointer;}
+        .nav-link:hover{color:var(--text1,#e2e8f0);}
 
         /* Freq badge */
         .freq-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
@@ -327,7 +335,7 @@ export default function LandingPage({ onLaunch }) {
         @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
         .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;
           display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
-        .modal-card{background:rgba(6,15,30,0.98);border:1px solid rgba(255,255,255,0.1);
+        .modal-card{background:var(--panel,rgba(6,15,30,0.98));border:1px solid var(--border,rgba(255,255,255,0.1));
           border-radius:22px;padding:36px 32px;width:100%;max-width:380px;
           animation:fadeUp 0.35s ease both;}
         .sign-in-btn{width:100%;padding:13px;border-radius:12px;border:none;cursor:pointer;
@@ -335,6 +343,37 @@ export default function LandingPage({ onLaunch }) {
           font-weight:700;font-size:11px;letter-spacing:0.07em;transition:all 0.2s;}
         .sign-in-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,229,255,0.3);}
         .sign-in-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+        button:focus-visible,a:focus-visible{outline:2px solid var(--focus,#00e5ff);outline-offset:3px;}
+        .scroll-cue{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);
+          width:38px;height:38px;border-radius:50%;border:1px solid var(--border,rgba(255,255,255,0.12));
+          background:var(--glass,rgba(6,15,30,0.45));color:#00e5ff;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;animation:pulse 2s ease infinite;}
+        @media (max-width: 760px){
+          .lp-nav-inner{padding:12px 16px !important;display:grid !important;
+            grid-template-columns:auto 1fr auto !important;gap:10px !important;}
+          .lp-nav-links{display:none !important;}
+          .lp-nav-actions{gap:6px !important;justify-content:flex-end !important;min-width:0;}
+          .lp-user-actions{gap:6px !important;}
+          .lp-user-actions .sec-btn{display:none !important;}
+          .lp-launch{padding:9px 12px !important;font-size:10px !important;}
+          .hero-grid,.how-grid{grid-template-columns:1fr !important;gap:34px !important;text-align:center;}
+          .hero-copy{order:2;}
+          .hero-orb{order:1;}
+          .hero-cta,.freq-row{justify-content:center;}
+          .stats-grid,.features-grid,.testimonials-grid{grid-template-columns:1fr !important;}
+          .problem-card,.cta-panel{padding:30px 20px !important;border-radius:18px !important;}
+          .footer-inner{align-items:flex-start !important;}
+          .footer-links{width:100%;justify-content:flex-start;flex-wrap:wrap;}
+        }
+        @media (max-width: 430px){
+          .lp-brand{font-size:20px !important;}
+          .lp-launch{max-width:118px;white-space:normal;line-height:1.2;}
+          .hero-section{padding:98px 18px 72px !important;}
+          .hero-title{font-size:clamp(42px,17vw,58px) !important;line-height:0.96 !important;}
+          .hero-sub{font-size:15px !important;}
+          .stat-card{padding:22px 18px;}
+          .modal-card{max-width:calc(100vw - 28px);padding:30px 22px;}
+        }
       `}</style>
 
       {/* Launch overlay */}
@@ -350,25 +389,29 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── NAV ── */}
       <nav className={`lp-nav${scrollY > 40 ? " scrolled" : ""}`}>
-        <div style={{ maxWidth:1100,margin:"0 auto",padding:"16px 28px",
+        <div className="lp-nav-inner" style={{ maxWidth:1100,margin:"0 auto",padding:"16px 28px",
           display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           {/* Logo — scrolls back to top */}
-          <button onClick={() => window.scrollTo({top:0,behavior:"smooth"})}
+          <button className="lp-brand" onClick={() => window.scrollTo({top:0,behavior:"smooth"})}
+            aria-label="Scroll to top"
             style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:"0.1em",
-              color:"#f1f5f9",background:"transparent",border:"none",cursor:"pointer",padding:0 }}>
+              color:"var(--text1,#f1f5f9)",background:"transparent",border:"none",cursor:"pointer",padding:0 }}>
             FOCUS<span style={{ color:"#00e5ff" }}>MIND</span>
           </button>
-          <div style={{ display:"flex",alignItems:"center",gap:28 }}>
+          <div className="lp-nav-links" style={{ display:"flex",alignItems:"center",gap:28 }}>
             {["Features","How It Works","Testimonials"].map(l => (
               <a key={l} href={`#${l.toLowerCase().replace(/\s/g,"-")}`} className="nav-link">{l}</a>
             ))}
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <div className="lp-nav-actions" style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <LanguageSelector compact />
+            <ThemeToggle compact />
             {user ? (
               /* Signed in state */
-              <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <div className="lp-user-actions" style={{ display:"flex",alignItems:"center",gap:10 }}>
                 <button
                   onClick={() => setShowDashboard(true)}
+                  aria-label="Open user dashboard"
                   style={{ display:"flex",alignItems:"center",gap:8,padding:"6px 14px",
                     borderRadius:999,border:"1px solid rgba(0,229,255,0.3)",
                     background:"rgba(0,229,255,0.08)",cursor:"pointer",
@@ -382,20 +425,23 @@ export default function LandingPage({ onLaunch }) {
                   </span>
                 </button>
                 <button onClick={signOut}
+                  aria-label={t("nav.signOut")}
                   className="sec-btn"
                   style={{ padding:"8px 14px",borderRadius:10,fontSize:10 }}>
-                  SIGN OUT
+                  {t("nav.signOut")}
                 </button>
               </div>
             ) : (
               /* Not signed in */
               <button onClick={() => { setShowLogin(true); setSignInErr(""); }}
+                aria-label={t("auth.signInWithGoogle")}
                 className="sec-btn"
                 style={{ padding:"10px 18px",borderRadius:10 }}>
                 SIGN IN
               </button>
             )}
-            <button className="cta-btn" onClick={handleLaunch}
+            <button className="cta-btn lp-launch" onClick={handleLaunch}
+              aria-label={t("nav.launchApp")}
               style={{ background:"#00e5ff",color:"#020810",padding:"10px 22px",
                 borderRadius:10,fontSize:11 }}>
               LAUNCH APP →
@@ -410,6 +456,7 @@ export default function LandingPage({ onLaunch }) {
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             {/* Close */}
             <button onClick={() => setShowLogin(false)}
+              aria-label="Close sign-in dialog"
               style={{ position:"absolute",top:16,right:16,background:"transparent",border:"none",
                 color:"#475569",cursor:"pointer",fontSize:18,lineHeight:1 }}>✕</button>
 
@@ -435,6 +482,7 @@ export default function LandingPage({ onLaunch }) {
             <button
               className="sign-in-btn"
               disabled={signingIn}
+              aria-label={t("auth.signInWithGoogle")}
               onClick={async () => {
                 setSigningIn(true);
                 setSignInErr("");
@@ -464,6 +512,7 @@ export default function LandingPage({ onLaunch }) {
             </div>
 
             <button onClick={() => { setShowLogin(false); handleLaunch(); }}
+              aria-label={t("auth.continueAsGuest")}
               style={{ width:"100%",padding:"12px",borderRadius:12,cursor:"pointer",
                 border:"1px solid rgba(255,255,255,0.1)",background:"transparent",
                 color:"#64748b",fontFamily:"'Space Mono',monospace",fontSize:11,
@@ -485,13 +534,13 @@ export default function LandingPage({ onLaunch }) {
       )}
 
       {/* ── HERO ── */}
-      <section ref={heroRef} style={{ minHeight:"100vh",display:"flex",alignItems:"center",
+      <section ref={heroRef} className="hero-section" style={{ minHeight:"100vh",display:"flex",alignItems:"center",
         justifyContent:"center",padding:"120px 24px 80px",position:"relative" }}>
-        <div style={{ maxWidth:1100,margin:"0 auto",width:"100%",
+        <div className="hero-grid" style={{ maxWidth:1100,margin:"0 auto",width:"100%",
           display:"grid",gridTemplateColumns:"1fr 1fr",gap:60,alignItems:"center" }}>
 
           {/* Left */}
-          <div style={{ animation:"fadeUp 0.8s ease both" }}>
+          <div className="hero-copy" style={{ animation:"fadeUp 0.8s ease both" }}>
             {/* Badge */}
             <div style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"6px 14px",
               borderRadius:999,border:"1px solid rgba(0,229,255,0.2)",
@@ -503,26 +552,28 @@ export default function LandingPage({ onLaunch }) {
             </div>
 
             {/* Headline */}
-            <h1 style={{ fontFamily:"'Bebas Neue',sans-serif",
+            <h1 className="hero-title" style={{ fontFamily:"'Bebas Neue',sans-serif",
               fontSize:"clamp(52px,6vw,88px)",lineHeight:0.92,
               letterSpacing:"0.03em",marginBottom:24 }}>
-              <span style={{ color:"#f1f5f9",display:"block" }}>STUDY HARDER.</span>
-              <span className="grad-text" style={{ display:"block" }}>THINK SMARTER.</span>
-              <span style={{ color:"#f1f5f9",display:"block" }}>REMEMBER MORE.</span>
+              <span style={{ color:"var(--text1,#f1f5f9)",display:"block" }}>{t("landing.headline1")}</span>
+              <span className="grad-text" style={{ display:"block" }}>{t("landing.headline2")}</span>
+              <span style={{ color:"var(--text1,#f1f5f9)",display:"block" }}>{t("landing.headline3")}</span>
             </h1>
 
-            <p style={{ fontSize:17,color:"#64748b",lineHeight:1.75,marginBottom:36,maxWidth:480,fontWeight:300 }}>
+            <p className="hero-sub" style={{ fontSize:17,color:"var(--text3,#64748b)",lineHeight:1.75,marginBottom:36,maxWidth:480,fontWeight:300 }}>
               FocusMind combines AI-powered brainwave frequencies, adaptive Pomodoro sessions, a real-time voice study companion, and intelligent debriefs — all in one tool built for students who are serious about results.
             </p>
 
             {/* CTAs */}
-            <div style={{ display:"flex",gap:14,flexWrap:"wrap",marginBottom:40 }}>
+            <div className="hero-cta" style={{ display:"flex",gap:14,flexWrap:"wrap",marginBottom:40 }}>
               <button className="cta-btn" onClick={handleLaunch}
+                aria-label={t("landing.startFree")}
                 style={{ background:"#00e5ff",color:"#020810",
                   padding:"15px 32px",borderRadius:12,fontSize:12 }}>
                 START FOCUSING FREE →
               </button>
               <button className="sec-btn"
+                aria-label={t("landing.seeHow")}
                 style={{ padding:"15px 24px",borderRadius:12 }}
                 onClick={() => document.getElementById("how-it-works").scrollIntoView({ behavior:"smooth" })}>
                 SEE HOW IT WORKS
@@ -530,10 +581,10 @@ export default function LandingPage({ onLaunch }) {
             </div>
 
             {/* Freq badges */}
-            <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+            <div className="freq-row" style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
               {[["#00e5ff","BETA 18Hz","Active Focus"],["#b57bee","ALPHA 10Hz","Calm Reading"],
                 ["#ff4d1a","GAMMA 40Hz","Peak Cognition"],["#00ffb3","THETA 6Hz","Deep Rest"]
-              ].map(([color,label,tag]) => (
+              ].map(([color,label]) => (
                 <div key={label} className="freq-badge" style={{ color,borderColor:color+"44",background:color+"08" }}>
                   <div style={{ width:5,height:5,borderRadius:"50%",background:color }} />
                   {label}
@@ -543,11 +594,13 @@ export default function LandingPage({ onLaunch }) {
           </div>
 
           {/* Right — Orb */}
-          <div style={{ display:"flex",justifyContent:"center",alignItems:"center",
+          <div className="hero-orb" style={{ display:"flex",justifyContent:"center",alignItems:"center",
             animation:"float 6s ease-in-out infinite" }}>
             <HeroOrb />
           </div>
         </div>
+        <button className="scroll-cue" onClick={() => document.getElementById("features").scrollIntoView({ behavior:"smooth" })}
+          aria-label="Scroll to features">⌄</button>
       </section>
 
       {/* ── TICKER ── */}
@@ -570,7 +623,7 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── STATS ── */}
       <section ref={statsRef} style={{ padding:"80px 24px",maxWidth:1100,margin:"0 auto" }}>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16 }}>
+        <div className="stats-grid" style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16 }}>
           {[
             { val:`${c1.toLocaleString()}+`, label:"Study Sessions", sub:"completed on FocusMind", color:"#00e5ff" },
             { val:`${c2}%`, label:"Retention Rate", sub:"vs 31% industry average", color:"#b57bee" },
@@ -580,8 +633,8 @@ export default function LandingPage({ onLaunch }) {
             <div key={i} className="stat-card">
               <div style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:52,
                 color:s.color,lineHeight:1,letterSpacing:"0.03em",marginBottom:6 }}>{s.val}</div>
-              <div style={{ fontSize:14,color:"#e2e8f0",fontWeight:500,marginBottom:4 }}>{s.label}</div>
-              <div style={{ fontSize:12,color:"#334155" }}>{s.sub}</div>
+              <div style={{ fontSize:14,color:"var(--text1,#e2e8f0)",fontWeight:500,marginBottom:4 }}>{s.label}</div>
+              <div style={{ fontSize:12,color:"var(--text3,#334155)" }}>{s.sub}</div>
             </div>
           ))}
         </div>
@@ -589,17 +642,17 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── PROBLEM ── */}
       <section style={{ padding:"60px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
-        <div style={{ background:"rgba(255,77,26,0.04)",border:"1px solid rgba(255,77,26,0.12)",
+        <div className="problem-card" style={{ background:"rgba(255,77,26,0.04)",border:"1px solid rgba(255,77,26,0.12)",
           borderRadius:24,padding:"48px",position:"relative",overflow:"hidden" }}>
           <div style={{ position:"absolute",top:-40,right:-40,fontFamily:"'Bebas Neue',sans-serif",
             fontSize:200,color:"rgba(255,77,26,0.04)",lineHeight:1,pointerEvents:"none",userSelect:"none" }}>?</div>
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
             color:"#ff4d1a",marginBottom:12,opacity:0.8 }}>THE PROBLEM</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(32px,4vw,52px)",
-            letterSpacing:"0.04em",color:"#f1f5f9",marginBottom:20,maxWidth:700,lineHeight:1.05 }}>
+            letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",marginBottom:20,maxWidth:700,lineHeight:1.05 }}>
             STUDENTS SPEND HOURS STUDYING AND REMEMBER ALMOST NOTHING.
           </h2>
-          <p style={{ fontSize:16,color:"#475569",lineHeight:1.8,maxWidth:600,marginBottom:32 }}>
+          <p style={{ fontSize:16,color:"var(--text3,#475569)",lineHeight:1.8,maxWidth:600,marginBottom:32 }}>
             The average student forgets <span style={{ color:"#ff4d1a",fontWeight:600 }}>70% of new information within 24 hours</span>. Generic study techniques, lo-fi playlists, and basic timers don't address the root problem — your brain needs the right frequency, structure, and active recall to actually retain knowledge.
           </p>
           <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
@@ -619,11 +672,11 @@ export default function LandingPage({ onLaunch }) {
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
             color:"#1e3a5f",marginBottom:12 }}>WHAT FOCUSMIND DOES</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,60px)",
-            letterSpacing:"0.04em",color:"#f1f5f9",lineHeight:1.05 }}>
+            letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:1.05 }}>
             EVERY TOOL YOUR<br/><span className="grad-text">BRAIN ACTUALLY NEEDS</span>
           </h2>
         </div>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16 }}>
+        <div className="features-grid" style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16 }}>
           <FeatureCard delay={0} icon="🧠" color="#00e5ff" title="AI FREQUENCY MATCHING"
             desc="Describe what you're studying and our AI instantly recommends the optimal brainwave frequency — Gamma for math, Beta for research, Alpha for reading, Theta for creative work. Real isochronic tones generated in-browser." />
           <FeatureCard delay={100} icon="⏱" color="#b57bee" title="ADAPTIVE POMODORO"
@@ -637,12 +690,12 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── HOW IT WORKS ── */}
       <section id="how-it-works" style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center" }}>
+        <div className="how-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center" }}>
           <div>
             <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
               color:"#1e3a5f",marginBottom:12 }}>HOW IT WORKS</div>
             <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,4vw,56px)",
-              letterSpacing:"0.04em",color:"#f1f5f9",lineHeight:1.05,marginBottom:40 }}>
+              letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:1.05,marginBottom:40 }}>
               THREE STEPS TO<br/><span className="grad-text">DEEPER FOCUS</span>
             </h2>
             <div style={{ display:"flex",flexDirection:"column",gap:28 }}>
@@ -657,7 +710,7 @@ export default function LandingPage({ onLaunch }) {
 
           {/* Visual */}
           <div style={{ position:"relative" }}>
-            <div style={{ background:"rgba(6,15,30,0.8)",border:"1px solid rgba(255,255,255,0.07)",
+            <div style={{ background:"var(--panel,rgba(6,15,30,0.8))",border:"1px solid var(--border,rgba(255,255,255,0.07))",
               borderRadius:24,padding:32,overflow:"hidden" }}>
               <div style={{ position:"absolute",inset:0,background:"radial-gradient(circle at 70% 30%, rgba(0,229,255,0.05), transparent 60%)",pointerEvents:"none" }} />
               {[
@@ -675,8 +728,8 @@ export default function LandingPage({ onLaunch }) {
                     border:`1px solid ${item.color}33`,display:"flex",alignItems:"center",
                     justifyContent:"center",fontSize:14,flexShrink:0 }}>{item.icon}</div>
                   <div>
-                    <div style={{ fontSize:13,color:"#e2e8f0",lineHeight:1 }}>{item.label}</div>
-                    <div style={{ fontSize:11,color:"#334155",marginTop:3,fontFamily:"'Space Mono',monospace",letterSpacing:"0.04em" }}>{item.sub}</div>
+                    <div style={{ fontSize:13,color:"var(--text1,#e2e8f0)",lineHeight:1 }}>{item.label}</div>
+                    <div style={{ fontSize:11,color:"var(--text3,#334155)",marginTop:3,fontFamily:"'Space Mono',monospace",letterSpacing:"0.04em" }}>{item.sub}</div>
                   </div>
                   <div style={{ marginLeft:"auto",width:7,height:7,borderRadius:"50%",background:item.color,
                     boxShadow:`0 0 8px ${item.color}88` }} />
@@ -693,11 +746,11 @@ export default function LandingPage({ onLaunch }) {
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
             color:"#1e3a5f",marginBottom:12 }}>WHAT STUDENTS SAY</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(32px,4vw,52px)",
-            letterSpacing:"0.04em",color:"#f1f5f9",lineHeight:1.05 }}>
+            letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:1.05 }}>
             REAL RESULTS FROM<br/><span className="grad-text">REAL STUDENTS</span>
           </h2>
         </div>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16 }}>
+        <div className="testimonials-grid" style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16 }}>
           <Testimonial delay={0} avatar="👩‍💻"
             name="Priya S." role="CS MAJOR · NYU"
             quote="I used to study for 3 hours and barely remember anything. FocusMind's voice companion literally explains concepts while I work. My quiz scores went from 60% to 90% in two weeks." />
@@ -712,7 +765,7 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── CTA SECTION ── */}
       <section style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
-        <div style={{ background:"linear-gradient(135deg, rgba(0,229,255,0.06) 0%, rgba(181,123,238,0.06) 50%, rgba(255,77,26,0.06) 100%)",
+        <div className="cta-panel" style={{ background:"linear-gradient(135deg, rgba(0,229,255,0.06) 0%, rgba(181,123,238,0.06) 50%, rgba(255,77,26,0.06) 100%)",
           border:"1px solid rgba(255,255,255,0.08)",borderRadius:28,
           padding:"72px 48px",textAlign:"center",position:"relative",overflow:"hidden" }}>
           <div style={{ position:"absolute",inset:0,
@@ -721,10 +774,10 @@ export default function LandingPage({ onLaunch }) {
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.2em",
             color:"#1e3a5f",marginBottom:14 }}>START TODAY · IT'S FREE</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(40px,6vw,72px)",
-            letterSpacing:"0.04em",color:"#f1f5f9",lineHeight:0.95,marginBottom:20 }}>
+            letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:0.95,marginBottom:20 }}>
             YOUR BRAIN DESERVES<br/><span className="grad-text">BETTER TOOLS.</span>
           </h2>
-          <p style={{ fontSize:16,color:"#475569",lineHeight:1.7,marginBottom:36,maxWidth:480,margin:"0 auto 36px" }}>
+          <p style={{ fontSize:16,color:"var(--text3,#475569)",lineHeight:1.7,marginBottom:36,maxWidth:480,margin:"0 auto 36px" }}>
             Join thousands of students who stopped grinding and started studying smart. No signup required.
           </p>
           <button className="cta-btn" onClick={handleLaunch}
@@ -746,18 +799,18 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── FOOTER ── */}
       <footer style={{ borderTop:"1px solid rgba(255,255,255,0.05)",padding:"40px 24px" }}>
-        <div style={{ maxWidth:1100,margin:"0 auto",
+        <div className="footer-inner" style={{ maxWidth:1100,margin:"0 auto",
           display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:20 }}>
           <div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",
-              color:"#f1f5f9",marginBottom:4 }}>
+              color:"var(--text1,#f1f5f9)",marginBottom:4 }}>
               FOCUS<span style={{ color:"#00e5ff" }}>MIND</span>
             </div>
             <div style={{ fontSize:12,color:"#1e3a5f",fontFamily:"'Space Mono',monospace",letterSpacing:"0.06em" }}>
               Study smarter. Not longer.
             </div>
           </div>
-          <div style={{ display:"flex",gap:24,alignItems:"center" }}>
+          <div className="footer-links" style={{ display:"flex",gap:24,alignItems:"center" }}>
             {["Features","How It Works","Testimonials"].map(l => (
               <a key={l} href={`#${l.toLowerCase().replace(/\s/g,"-")}`} className="nav-link" style={{ fontSize:12 }}>{l}</a>
             ))}
@@ -765,7 +818,7 @@ export default function LandingPage({ onLaunch }) {
           <div style={{ textAlign:"right" }}>
             <div style={{ fontSize:11,color:"#1e3a5f",fontFamily:"'Space Mono',monospace",
               letterSpacing:"0.08em",marginBottom:4 }}>BUILT FOR</div>
-            <div style={{ fontSize:12,color:"#334155",fontFamily:"'Space Mono',monospace",letterSpacing:"0.06em" }}>
+            <div style={{ fontSize:12,color:"var(--text3,#334155)",fontFamily:"'Space Mono',monospace",letterSpacing:"0.06em" }}>
               HANDSHAKE × CODEX CHALLENGE
             </div>
           </div>

@@ -17,12 +17,14 @@ export default function LanguageSelector({ compact = false }) {
   return (
     <div style={{ position:"relative", zIndex:100 }}>
       <button onClick={() => setOpen(o => !o)}
+        aria-label="Change language"
+        aria-expanded={open}
         style={{ display:"flex", alignItems:"center", gap:6,
           padding: compact ? "5px 10px" : "7px 14px",
           borderRadius:999, cursor:"pointer",
-          border:"1px solid rgba(255,255,255,0.1)",
-          background:"rgba(6,15,30,0.85)", backdropFilter:"blur(10px)",
-          color:"#94a3b8", fontSize: compact ? 12 : 13,
+          border:"1px solid var(--border,rgba(255,255,255,0.1))",
+          background:"var(--glass,rgba(6,15,30,0.85))", backdropFilter:"blur(10px)",
+          color:"var(--text2,#94a3b8)", fontSize: compact ? 12 : 13,
           fontFamily:"'Space Mono',monospace", letterSpacing:"0.04em",
           transition:"all 0.2s" }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"; e.currentTarget.style.color = "#e2e8f0"; }}

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from "react";
 
 // ── Theme definitions ──────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ export const THEMES = {
       "--tag-bg":      "rgba(255,255,255,0.06)",
       "--glass":       "rgba(6,15,30,0.88)",
       "--shadow":      "rgba(0,0,0,0.4)",
+      "--focus":       "#00e5ff",
     }
   },
   light: {
@@ -42,6 +44,7 @@ export const THEMES = {
       "--tag-bg":      "rgba(0,0,0,0.05)",
       "--glass":       "rgba(255,255,255,0.92)",
       "--shadow":      "rgba(0,0,0,0.12)",
+      "--focus":       "#006b7a",
     }
   },
   beige: {
@@ -63,6 +66,7 @@ export const THEMES = {
       "--tag-bg":      "rgba(139,90,43,0.08)",
       "--glass":       "rgba(252,246,237,0.92)",
       "--shadow":      "rgba(100,60,20,0.15)",
+      "--focus":       "#8b5a2b",
     }
   },
 };

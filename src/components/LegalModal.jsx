@@ -269,6 +269,7 @@ export default function LegalModal({ onClose, initialTab = "privacy" }) {
               marginLeft: 10, fontWeight: 400 }}>Legal</span>
           </div>
           <button onClick={onClose}
+            aria-label="Close legal modal"
             style={{ width: 30, height: 30, borderRadius: "50%",
               border: "1px solid var(--border,rgba(255,255,255,0.1))",
               background: "transparent", cursor: "pointer",
@@ -284,6 +285,7 @@ export default function LegalModal({ onClose, initialTab = "privacy" }) {
           {TABS.map(t => (
             <button key={t.id} className="ltab"
               onClick={() => setTab(t.id)}
+              aria-label={`Show ${t.label}`}
               style={{
                 color: tab === t.id ? ACCENT : "var(--text3,#64748b)",
                 background: tab === t.id ? "rgba(0,229,255,0.1)" : "transparent",
@@ -325,6 +327,7 @@ export function LegalLinks({ style = {} }) {
           { label: "Voice Consent",    tab: "voice"   },
         ].map(l => (
           <button key={l.tab} onClick={() => open_(l.tab)}
+            aria-label={`Open ${l.label}`}
             style={{ background: "transparent", border: "none", cursor: "pointer",
               fontSize: 11, color: "var(--muted,#64748b)",
               fontFamily: "'Space Mono',monospace", letterSpacing: "0.06em",

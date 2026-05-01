@@ -1,5 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase, isConfigured } from "../db/supabase";
+import { migrateGuestData } from "../db/userService";
 
 const AuthContext = createContext(null);
 
@@ -43,20 +45,50 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  const applySession = useCallback((session) => {
+    if (session?.user) {
+      setUser(session.user);
+      setIsGuest(false);
+      setAuthError("");
+      setLoading(false);
+      loadProfile(session.user.id);
+      setTimeout(() => migrateGuestData(session.user.id), 0);
+      return true;
+    }
+    clearAuthState();
+    return false;
+  }, [clearAuthState, loadProfile]);
+
   useEffect(() => {
     if (!isConfigured) return;
 
     // ── Check session immediately on mount ──────────────────────────────
     // This catches the session after Google OAuth redirect
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user.id);
-      } else {
-        clearAuthState();
+    let cancelled = false;
+
+    const syncSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!cancelled) applySession(session);
+        return !!session?.user;
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("[Auth] session fetch failed:", error);
+          setLoading(false);
+        }
+        return false;
       }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    };
+
+    syncSession().then((found) => {
+      if (found || cancelled) return;
+      let attempts = 0;
+      const poll = window.setInterval(async () => {
+        attempts += 1;
+        const ok = await syncSession();
+        if (ok || attempts >= 6 || cancelled) window.clearInterval(poll);
+      }, 350);
+    });
 
     // ── Listen for future auth changes ──────────────────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -64,11 +96,7 @@ export function AuthProvider({ children }) {
         console.log("[Auth] event:", event, "user:", session?.user?.email);
 
         if (event === "SIGNED_IN" && session?.user) {
-          setUser(session.user);
-          setIsGuest(false);
-          setAuthError("");
-          setLoading(false);
-          loadProfile(session.user.id);
+          applySession(session);
         }
         if (event === "SIGNED_OUT") {
           clearAuthState();
@@ -78,19 +106,16 @@ export function AuthProvider({ children }) {
         }
         if (event === "INITIAL_SESSION") {
           // Fires on every page load with current session state
-          if (session?.user) {
-            setUser(session.user);
-            loadProfile(session.user.id);
-          } else {
-            clearAuthState();
-          }
-          setLoading(false);
+          applySession(session);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [clearAuthState, loadProfile]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [applySession, clearAuthState]);
 
   const signInWithGoogle = useCallback(async () => {
     setAuthError("");
@@ -106,7 +131,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!isConfigured) return;
+    if (!isConfigured) {
+      clearAuthState();
+      return;
+    }
     setAuthError("");
     const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
@@ -116,6 +144,14 @@ export function AuthProvider({ children }) {
     }
     clearAuthState();
   }, [clearAuthState]);
+
+  const continueAsGuest = useCallback(() => {
+    setAuthError("");
+    setUser(null);
+    setProfile(null);
+    setIsGuest(true);
+    setLoading(false);
+  }, []);
 
   const refreshProfile = useCallback(() => {
     if (user?.id) fetchProfile(user.id);
@@ -132,6 +168,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: !!user,
       signInWithGoogle,
       signOut,
+      continueAsGuest,
       refreshProfile,
     }}>
       {children}

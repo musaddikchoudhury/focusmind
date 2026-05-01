@@ -23,6 +23,7 @@ function SessionBars({ sessions }) {
         {last12.map((s, i) => {
           const pct = s.duration_seconds / max;
           const color = FREQ_COLOR[s.freq_key] || "#00e5ff";
+          const showLabel = last12.length <= 8 || i % 2 === 0;
           return (
             <div key={i} style={{ flex:1, display:"flex", flexDirection:"column",
               alignItems:"center", gap:2, height:"100%" }}>
@@ -33,7 +34,7 @@ function SessionBars({ sessions }) {
                     background:color, borderRadius:"3px 3px 0 0", opacity:0.75+pct*0.25 }} />
               </div>
               <div style={{ fontSize:7, color:color, fontFamily:"'Space Mono',monospace", opacity:0.7 }}>
-                {new Date(s.created_at).toLocaleDateString([],{month:"numeric",day:"numeric"})}
+                {showLabel ? new Date(s.created_at).toLocaleDateString([],{month:"numeric",day:"numeric"}) : ""}
               </div>
             </div>
           );
@@ -97,15 +98,19 @@ function FreqDonut({ sessions }) {
   const total = Object.values(counts).reduce((a,b)=>a+b,0);
   const items = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const R=34, cx=42, cy=42, sw=11;
-  let cum=0;
-  const arcs = items.map(([key,count]) => {
+  const arcs = items.reduce((state, [key,count]) => {
     const pct=count/total;
-    const s=cum*2*Math.PI-Math.PI/2; cum+=pct;
-    const e=cum*2*Math.PI-Math.PI/2;
+    const start=state.cum;
+    const end=start+pct;
+    const s=start*2*Math.PI-Math.PI/2;
+    const e=end*2*Math.PI-Math.PI/2;
     const x1=cx+R*Math.cos(s),y1=cy+R*Math.sin(s),x2=cx+R*Math.cos(e),y2=cy+R*Math.sin(e);
-    return { key, count, pct, path:`M ${x1} ${y1} A ${R} ${R} 0 ${pct>0.5?1:0} 1 ${x2} ${y2}`,
-      color:FREQ_COLOR[key]||"#475569" };
-  });
+    return {
+      cum:end,
+      list:[...state.list, { key, count, pct, path:`M ${x1} ${y1} A ${R} ${R} 0 ${pct>0.5?1:0} 1 ${x2} ${y2}`,
+        color:FREQ_COLOR[key]||"#475569" }],
+    };
+  }, { cum:0, list:[] }).list;
   return (
     <div>
       <div style={{ fontSize:9, color:"#1e3a5f", fontFamily:"'Space Mono',monospace", letterSpacing:"0.14em", marginBottom:8 }}>FREQUENCY USAGE</div>
@@ -148,14 +153,28 @@ function ActivityHeatmap({ sessions }) {
       const dt=new Date(today);
       dt.setDate(today.getDate()-(w*7+(days-1-d)));
       const key=dt.toISOString().slice(0,10);
-      col.push({key,val:map[key]||0});
+      col.push({key,val:map[key]||0,date:dt});
     }
     grid.push(col);
   }
   const dayL=["S","M","T","W","T","F","S"];
+  const monthLabels = grid.map((col, wi) => {
+    const prev = wi > 0 ? grid[wi - 1] : [];
+    const start = col.find(cell => cell.date.getDate() <= 7
+      && !prev.some(p => p.date.getMonth() === cell.date.getMonth()));
+    return start ? start.date.toLocaleDateString([], { month:"short" }) : "";
+  });
   return (
     <div>
       <div style={{ fontSize:9, color:"#1e3a5f", fontFamily:"'Space Mono',monospace", letterSpacing:"0.14em", marginBottom:8 }}>ACTIVITY (12 WEEKS)</div>
+      <div style={{ display:"flex", gap:2, marginLeft:14, marginBottom:3, minHeight:10 }}>
+        {monthLabels.map((label, i) => (
+          <div key={i} style={{ width:10, fontSize:7, color:"#1e3a5f",
+            fontFamily:"'Space Mono',monospace", lineHeight:"10px", overflow:"visible" }}>
+            {label}
+          </div>
+        ))}
+      </div>
       <div style={{ display:"flex", gap:2 }}>
         <div style={{ display:"flex", flexDirection:"column", gap:2, marginRight:2 }}>
           {dayL.map((l,i) => <div key={i} style={{ height:10,fontSize:7,color:"#1e3a5f",fontFamily:"'Space Mono',monospace",lineHeight:"10px" }}>{l}</div>)}
@@ -218,6 +237,37 @@ function MasteryBars({ progress }) {
   );
 }
 
+function EmptyIcon({ type = "chart" }) {
+  const path = type === "session"
+    ? "M16 10v12l9 5"
+    : "M8 28V16m10 12V8m10 20V20";
+  return (
+    <svg width="48" height="48" viewBox="0 0 36 36" aria-hidden="true"
+      style={{ marginBottom:10, opacity:0.8 }}>
+      <rect x="3" y="3" width="30" height="30" rx="8" fill="rgba(0,229,255,0.06)"
+        stroke="rgba(0,229,255,0.18)" />
+      <path d={path} fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:12,padding:"6px 0 2px" }} aria-label="Loading dashboard data">
+      {[0,1,2].map(row => (
+        <div key={row} className="card" style={{ display:"flex",gap:10,alignItems:"center" }}>
+          <div className="skel" style={{ width:42,height:42,borderRadius:12,flexShrink:0 }} />
+          <div style={{ flex:1,display:"flex",flexDirection:"column",gap:8 }}>
+            <div className="skel" style={{ width:"68%",height:10,borderRadius:8 }} />
+            <div className="skel" style={{ width:"92%",height:8,borderRadius:8 }} />
+            <div className="skel" style={{ width:"42%",height:8,borderRadius:8 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function UserDashboard({ onClose }) {
   const { user, signOut } = useAuth();
   const [data,setData]=useState(null);
@@ -233,7 +283,10 @@ export default function UserDashboard({ onClose }) {
     finally { setLoading(false); }
   },[user]);
 
-  useEffect(()=>{ load(); },[load]);
+  useEffect(()=>{
+    const id = setTimeout(load, 0);
+    return () => clearTimeout(id);
+  },[load]);
   useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=0; },[tab]);
 
   const profile=data?.profile;
@@ -246,25 +299,36 @@ export default function UserDashboard({ onClose }) {
     <div onClick={onClose}
       style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",
         zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",
-        backdropFilter:"blur(14px)",padding:16,fontFamily:"'DM Sans',sans-serif" }}>
-      <div onClick={e=>e.stopPropagation()} ref={scrollRef}
-        style={{ width:"100%",maxWidth:520,maxHeight:"88vh",overflowY:"auto",
+        backdropFilter:"blur(14px)",padding:16,fontFamily:"'DM Sans',sans-serif",overflowX:"hidden" }}>
+      <div className="dash-shell" onClick={e=>e.stopPropagation()} ref={scrollRef}
+        style={{ width:"100%",maxWidth:520,maxHeight:"88vh",overflowY:"auto",overflowX:"hidden",
           background:"rgba(4,12,24,0.98)",border:"1px solid rgba(255,255,255,0.09)",
           borderRadius:22,color:"#e2e8f0",animation:"dashIn 0.35s cubic-bezier(0.16,1,0.3,1) both" }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
           @keyframes dashIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
           @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+          @keyframes shimmer{0%{background-position:120% 0}100%{background-position:-120% 0}}
           .dt{background:transparent;border:1px solid transparent;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:7px 14px;border-radius:999px;transition:all 0.2s;color:#475569;}
           .dt:hover{color:#94a3b8;}
           .dt.on{color:#00e5ff;background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);}
           .card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;}
+          .skel{background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(0,229,255,0.1),rgba(255,255,255,0.04));background-size:220% 100%;animation:shimmer 1.2s ease-in-out infinite;}
+          button:focus-visible{outline:2px solid var(--focus,#00e5ff);outline-offset:3px;}
           ::-webkit-scrollbar{width:3px}
           ::-webkit-scrollbar-thumb{background:#0f2744;border-radius:2px}
+          @media (max-width: 520px){
+            .dash-shell{max-width:calc(100vw - 18px) !important;border-radius:16px !important;}
+            .dash-header{padding:16px 14px 0 !important;gap:10px !important;}
+            .dash-stats{grid-template-columns:repeat(2,1fr) !important;padding:12px 14px 0 !important;}
+            .dash-tabs{padding:12px 14px 0 !important;overflow-x:auto;}
+            .dash-content{padding:12px 14px 18px !important;}
+            .dash-two{grid-template-columns:1fr !important;}
+          }
         `}</style>
 
         {/* Header */}
-        <div style={{ padding:"20px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+        <div className="dash-header" style={{ padding:"20px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           <div style={{ display:"flex",alignItems:"center",gap:12 }}>
             <div style={{ width:44,height:44,borderRadius:"50%",overflow:"hidden",
               border:"2px solid rgba(0,229,255,0.3)",flexShrink:0 }}>
@@ -284,12 +348,14 @@ export default function UserDashboard({ onClose }) {
           </div>
           <div style={{ display:"flex",gap:8 }}>
             <button onClick={handleSignOut}
+              aria-label="Sign out"
               style={{ padding:"6px 12px",borderRadius:9,cursor:"pointer",
                 border:"1px solid rgba(255,107,107,0.3)",background:"transparent",
                 color:"#ff8080",fontFamily:"'Space Mono',monospace",fontSize:9,letterSpacing:"0.07em",transition:"all 0.2s" }}
               onMouseEnter={e=>e.currentTarget.style.background="rgba(255,107,107,0.08)"}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>SIGN OUT</button>
             <button onClick={onClose}
+              aria-label="Close dashboard"
               style={{ width:30,height:30,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.1)",
                 background:"transparent",cursor:"pointer",color:"#475569",fontSize:14,
                 display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
@@ -298,7 +364,7 @@ export default function UserDashboard({ onClose }) {
 
         {/* Stats row */}
         {!loading && (
-          <div style={{ padding:"12px 20px 0",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8 }}>
+          <div className="dash-stats" style={{ padding:"12px 20px 0",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8 }}>
             {[
               {label:"STUDY TIME",value:fmtTime(profile?.total_study_seconds||0),color:"#00e5ff"},
               {label:"SESSIONS",value:profile?.total_sessions||0,color:"#00ffb3"},
@@ -315,22 +381,19 @@ export default function UserDashboard({ onClose }) {
         )}
 
         {/* Tabs */}
-        <div style={{ display:"flex",gap:4,padding:"12px 20px 0" }}>
+        <div className="dash-tabs" style={{ display:"flex",gap:4,padding:"12px 20px 0" }}>
           {["overview","sessions","progress"].map(t=>(
-            <button key={t} className={`dt${tab===t?" on":""}`} onClick={()=>setTab(t)}>
+            <button key={t} className={`dt${tab===t?" on":""}`} onClick={()=>setTab(t)}
+              aria-label={`Show ${t} dashboard`}>
               {t.toUpperCase()}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div style={{ padding:"12px 20px 22px" }}>
+        <div className="dash-content" style={{ padding:"12px 20px 22px" }}>
           {loading ? (
-            <div style={{ padding:"40px 0",textAlign:"center" }}>
-              <div style={{ width:26,height:26,border:"2px solid rgba(0,229,255,0.2)",borderTopColor:"#00e5ff",
-                borderRadius:"50%",margin:"0 auto 12px",animation:"spin 0.9s linear infinite" }}/>
-              <p style={{ color:"#334155",fontSize:13 }}>Loading your data...</p>
-            </div>
+            <DashboardSkeleton />
           ) : (
             <>
               {tab==="overview" && (
@@ -339,13 +402,14 @@ export default function UserDashboard({ onClose }) {
                     <>
                       <div className="card"><ActivityHeatmap sessions={sessions}/></div>
                       <div className="card"><SessionBars sessions={sessions}/></div>
-                      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
+                      <div className="dash-two" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
                         <div className="card"><FreqDonut sessions={sessions}/></div>
                         <div className="card"><FocusSparkline sessions={sessions}/></div>
                       </div>
                     </>
                   ) : (
                     <div className="card" style={{ textAlign:"center",padding:"30px 20px" }}>
+                      <EmptyIcon />
                       <div style={{ fontSize:30,marginBottom:10 }}>📊</div>
                       <p style={{ color:"#475569",fontSize:13,lineHeight:1.7 }}>
                         Complete your first Pomodoro session to see your analytics here.
@@ -395,6 +459,7 @@ export default function UserDashboard({ onClose }) {
                     </div>
                   )) : (
                     <div className="card" style={{ textAlign:"center",padding:"28px 0" }}>
+                      <EmptyIcon type="session" />
                       <p style={{ color:"#475569",fontSize:13 }}>No sessions recorded yet.</p>
                     </div>
                   )}

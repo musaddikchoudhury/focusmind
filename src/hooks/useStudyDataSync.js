@@ -71,6 +71,7 @@ export function useStudyDataSync({
     topicsTested,
     quizData,
     answers,
+    answerOffset = 0,
   }) => {
     if (!user?.id) return; // quiz data not persisted for guests
 
@@ -92,7 +93,7 @@ export function useStudyDataSync({
         const wrongTopics   = [];
         quizData.forEach((q, i) => {
           const topic = q.topic || material;
-          if (answers[i] === q.answer) correctTopics.push(topic);
+          if (answers[i + answerOffset] === q.answer) correctTopics.push(topic);
           else wrongTopics.push(topic);
         });
         if (correctTopics.length) await updateTopicProgress(user.id, correctTopics, true);
