@@ -1,0 +1,75 @@
+{
+  "app": { "name": "FocusMind", "tagline": "Estude com mais inteligência. Não mais tempo." },
+  "nav": { "launchApp": "ABRIR APP", "signOut": "SAIR", "guest": "Convidado" },
+  "auth": {
+    "signInTitle": "Bem-vindo ao FocusMind",
+    "signInSubtitle": "Faça login para salvar seu progresso, histórico de quizzes e dados de aprendizado.",
+    "signInWithGoogle": "Continuar com Google",
+    "continueAsGuest": "Continuar como Convidado",
+    "guestNote": "Sessões de convidado são salvas localmente. Faça login para sincronizar.",
+    "signingIn": "Entrando...", "signInError": "Falha no login. Tente novamente.",
+    "syncingData": "Sincronizando dados..."
+  },
+  "setup": {
+    "badge": "IA · FREQUÊNCIA · POMODORO · VOZ",
+    "headline1": "ESTUDE", "headline2": "MAIS INTELIGENTE",
+    "subheadline": "Frequência IA · Foco Pomodoro · Assistente de voz",
+    "label": "O QUE VOCÊ ESTÁ ESTUDANDO HOJE?",
+    "placeholder": "ex. Química orgânica — mecanismos SN1/SN2 para minha prova de sexta...",
+    "analyzeBtn": "→ ENCONTRAR MINHA FREQUÊNCIA", "analyzing": "ANALISANDO...",
+    "error": "Descreva seu material de estudo primeiro.", "quickStart": "INÍCIO RÁPIDO",
+    "subjects": { "math": "Matemática / Código", "science": "Ciências", "reading": "Leitura", "creative": "Criativo" }
+  },
+  "session": {
+    "focus": "FOCO", "shortBreak": "PAUSA CURTA", "longBreak": "PAUSA LONGA",
+    "done": "concluídas", "weakLabel": "⚠ FRACO:", "vol": "VOL",
+    "frequencyMode": "MODO DE FREQUÊNCIA", "aiRecommendation": "RECOMENDAÇÃO IA",
+    "changeMaterial": "← MUDAR MATERIAL"
+  },
+  "freq": {
+    "gamma": { "label": "GAMMA", "tag": "Cognição máxima"  },
+    "beta":  { "label": "BETA",  "tag": "Foco ativo"       },
+    "alpha": { "label": "ALPHA", "tag": "Leitura tranquila" },
+    "theta": { "label": "THETA", "tag": "Descanso profundo" }
+  },
+  "voice": {
+    "title": "ASSISTENTE DE VOZ", "questionsAsked": "{{count}} perguntas",
+    "weakAreas": "· {{count}} áreas fracas", "continuousOn": "● CONTÍNUO ATIVO",
+    "tapToAsk": "TOQUE NO MIC PARA PERGUNTAR", "micPaused": "MIC EM PAUSA",
+    "listening": "● OUVINDO", "listeningContinuous": "● OUVINDO (CONTÍNUO)",
+    "thinking": "PENSANDO...", "speaking": "◉ FALANDO",
+    "tapStop": "TOQUE PARA PARAR", "tap": "TOCAR",
+    "continuous": "CONTÍNUO", "holdOn": "MANTER",
+    "micBlocked": "Microfone bloqueado. Ative as permissões nas configurações do navegador.",
+    "placeholder": "Ou digite sua pergunta aqui...", "send": "ENVIAR",
+    "backToTimer": "← VOLTAR AO TEMPORIZADOR",
+    "emptyState": "Pergunte qualquer coisa sobre seu material.",
+    "emptySubstate": "Áreas fracas são rastreadas automaticamente.",
+    "weakAreasTitle": "⚠ ÁREAS FRACAS DETECTADAS",
+    "notSupported": "Reconhecimento de voz não suportado. Use Chrome ou Edge."
+  },
+  "debrief": {
+    "sessionComplete": "SESSÃO {{n}} CONCLUÍDA", "howWasFocus": "COMO FOI SEU FOCO?",
+    "voiceLogged": "🎤 {{count}} perguntas de voz registradas",
+    "beHonest": "Seja honesto — ajuda seu coach IA",
+    "ratings": ["", "Sessão difícil", "Melhorando", "Bom ritmo", "Bom foco", "Foco profundo 🔥"],
+    "continue": "CONTINUAR →", "whatCovered": "O QUE VOCÊ ESTUDOU?", "tellMe": "O QUE VOCÊ ESTUDOU?",
+    "coveredPlaceholder": "Quais tópicos específicos você trabalhou nesta sessão?",
+    "back": "← VOLTAR", "questions": "QUESTÕES:", "generateQuiz": "GERAR QUIZ ({{n}}Q) →",
+    "quizTitle": "QUIZ · R{{round}}", "generating": "Gerando quiz...",
+    "aiInsightTitle": "COACH IA", "sessionDebrief": "RESUMO DA SESSÃO",
+    "coachSays": "O COACH DIZ", "recentSessions": "SESSÕES RECENTES",
+    "takeBreak": "→ PAUSA DE {{n}} min", "skipBreak": "PULAR →",
+    "getInsight": "VER ANÁLISE →", "moreQuestions": "+ MAIS QUESTÕES",
+    "analyzing": "Analisando sua sessão...",
+    "metrics": { "focus": "FOCO", "quiz": "QUIZ", "voice": "VOZ", "session": "SESSÃO" },
+    "weakFlagged": "⚠ ÁREAS FRACAS SINALIZADAS", "backToSetup": "← VOLTAR AO INÍCIO",
+    "nextDifficulty": "Próxima rodada → {{level}}", "roundLabel": "RODADA {{n}} · {{diff}}"
+  },
+  "landing": {
+    "badge": "HANDSHAKE × CODEX CHALLENGE",
+    "headline1": "ESTUDE MAIS.", "headline2": "PENSE MELHOR.", "headline3": "LEMBRE MAIS.",
+    "startFree": "COMEÇAR GRÁTIS →", "seeHow": "VER COMO FUNCIONA",
+    "noAccount": "Sem conta · Sem cartão · Funciona no navegador"
+  }
+}

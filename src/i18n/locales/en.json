@@ -1,0 +1,124 @@
+{
+  "app": {
+    "name": "FocusMind",
+    "tagline": "Study smarter. Not longer."
+  },
+  "nav": {
+    "launchApp": "LAUNCH APP",
+    "signOut": "SIGN OUT",
+    "guest": "Guest"
+  },
+  "auth": {
+    "signInTitle": "Welcome to FocusMind",
+    "signInSubtitle": "Sign in to save your progress, quiz history, and learning data.",
+    "signInWithGoogle": "Continue with Google",
+    "continueAsGuest": "Continue as Guest",
+    "guestNote": "Guest sessions are saved locally. Sign in anytime to sync your data.",
+    "signingIn": "Signing in...",
+    "signInError": "Sign-in failed. Please try again.",
+    "syncingData": "Syncing your data..."
+  },
+  "setup": {
+    "badge": "AI · FREQUENCY · POMODORO · VOICE",
+    "headline1": "STUDY",
+    "headline2": "SMARTER",
+    "subheadline": "AI frequency match · Pomodoro focus · Voice study companion",
+    "label": "WHAT ARE YOU STUDYING TODAY?",
+    "placeholder": "e.g. Organic chemistry — SN1/SN2 reaction mechanisms for my Friday exam...",
+    "analyzeBtn": "→ FIND MY FOCUS FREQUENCY",
+    "analyzing": "ANALYZING...",
+    "error": "Describe your study material first.",
+    "quickStart": "QUICK START",
+    "subjects": {
+      "math": "Math / Coding",
+      "science": "Science",
+      "reading": "Reading",
+      "creative": "Creative"
+    }
+  },
+  "session": {
+    "focus": "FOCUS",
+    "shortBreak": "SHORT BREAK",
+    "longBreak": "LONG BREAK",
+    "done": "done",
+    "weakLabel": "⚠ WEAK:",
+    "vol": "VOL",
+    "frequencyMode": "FREQUENCY MODE",
+    "aiRecommendation": "AI RECOMMENDATION",
+    "changeMaterial": "← CHANGE MATERIAL"
+  },
+  "freq": {
+    "gamma": { "label": "GAMMA", "tag": "Peak cognition" },
+    "beta":  { "label": "BETA",  "tag": "Active focus"  },
+    "alpha": { "label": "ALPHA", "tag": "Calm reading"  },
+    "theta": { "label": "THETA", "tag": "Deep rest"     }
+  },
+  "voice": {
+    "title": "VOICE COMPANION",
+    "questionsAsked": "{{count}} asked",
+    "weakAreas": "· {{count}} weak areas",
+    "continuousOn": "● CONTINUOUS ON",
+    "tapToAsk": "TAP MIC TO ASK",
+    "micPaused": "MIC PAUSED",
+    "listening": "● LISTENING",
+    "listeningContinuous": "● LISTENING (CONTINUOUS)",
+    "thinking": "THINKING...",
+    "speaking": "◉ SPEAKING",
+    "tapStop": "TAP STOP",
+    "tap": "TAP",
+    "continuous": "CONTINUOUS",
+    "holdOn": "HOLD ON",
+    "micBlocked": "Microphone blocked. Enable permissions in browser settings & refresh.",
+    "placeholder": "Or type your question here...",
+    "send": "SEND",
+    "backToTimer": "← BACK TO TIMER",
+    "emptyState": "Ask anything about your material.",
+    "emptySubstate": "Weak areas tracked automatically.",
+    "weakAreasTitle": "⚠ WEAK AREAS DETECTED",
+    "notSupported": "Speech recognition not supported. Use Chrome or Edge."
+  },
+  "debrief": {
+    "sessionComplete": "SESSION {{n}} COMPLETE",
+    "howWasFocus": "HOW WAS YOUR FOCUS?",
+    "voiceLogged": "🎤 {{count}} voice questions logged",
+    "beHonest": "Be honest — helps your AI coach",
+    "ratings": ["", "Rough session", "Getting there", "Decent flow", "Good focus", "Deep focus 🔥"],
+    "continue": "CONTINUE →",
+    "whatCovered": "WHAT DID YOU COVER?",
+    "tellMe": "WHAT DID YOU COVER?",
+    "coveredPlaceholder": "Which specific topics did you work through this session?",
+    "back": "← BACK",
+    "questions": "QUESTIONS:",
+    "generateQuiz": "GENERATE QUIZ ({{n}}Q) →",
+    "quizTitle": "QUIZ · R{{round}}",
+    "generating": "Generating quiz...",
+    "aiInsightTitle": "AI STUDY COACH",
+    "sessionDebrief": "SESSION DEBRIEF",
+    "coachSays": "COACH SAYS",
+    "recentSessions": "RECENT SESSIONS",
+    "takeBreak": "→ {{n}}min BREAK",
+    "skipBreak": "SKIP →",
+    "getInsight": "AI INSIGHT →",
+    "moreQuestions": "+ MORE QUESTIONS",
+    "analyzing": "Analyzing your session...",
+    "metrics": {
+      "focus": "FOCUS",
+      "quiz": "QUIZ",
+      "voice": "VOICE",
+      "session": "SESSION"
+    },
+    "weakFlagged": "⚠ FLAGGED WEAK AREAS",
+    "backToSetup": "← BACK TO SETUP",
+    "nextDifficulty": "Next round difficulty → {{level}}",
+    "roundLabel": "ROUND {{n}} · {{diff}}"
+  },
+  "landing": {
+    "badge": "HANDSHAKE × CODEX CHALLENGE",
+    "headline1": "STUDY HARDER.",
+    "headline2": "THINK SMARTER.",
+    "headline3": "REMEMBER MORE.",
+    "startFree": "START FOCUSING FREE →",
+    "seeHow": "SEE HOW IT WORKS",
+    "noAccount": "No account · No credit card · Works in your browser"
+  }
+}
