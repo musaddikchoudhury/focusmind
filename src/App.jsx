@@ -1081,9 +1081,9 @@ export default function App({ onGoHome }) {
   // ── Shared button styles ──────────────────────────────────────────────
   const iconBtn = (extra = {}) => ({
     width: 44, height: 44, borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.09)",
+    border: "1px solid var(--border,rgba(255,255,255,0.09))",
     background: "transparent", cursor: "pointer",
-    color: "#475569", fontSize: 17,
+    color: "var(--text3,#475569)", fontSize: 17,
     display: "flex", alignItems: "center", justifyContent: "center",
     transition: "all 0.2s", ...extra,
   });
@@ -1121,8 +1121,27 @@ export default function App({ onGoHome }) {
         body[data-theme="beige"] input[type="text"]::placeholder { color:var(--text4) !important; }
 
         .grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;
-          background-image:linear-gradient(rgba(255,255,255,0.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.013) 1px,transparent 1px);
+          background-image:linear-gradient(var(--grid-line,rgba(255,255,255,0.013)) 1px,transparent 1px),
+          linear-gradient(90deg,var(--grid-line,rgba(255,255,255,0.013)) 1px,transparent 1px);
           background-size:44px 44px;}
+        /* Light/beige: freq card & glass backgrounds */
+        body[data-theme="light"] .glass,
+        body[data-theme="beige"] .glass {
+          background: var(--glass) !important;
+          border-color: var(--border) !important;
+        }
+        body[data-theme="light"] .opt,
+        body[data-theme="beige"] .opt {
+          background: var(--panel,rgba(248,250,252,0.92)) !important;
+          color: var(--text2) !important;
+          border-color: var(--border) !important;
+        }
+        body[data-theme="light"] .opt:hover:not(:disabled),
+        body[data-theme="beige"] .opt:hover:not(:disabled) {
+          background: var(--bg2) !important;
+          color: var(--text1) !important;
+          border-color: var(--border2) !important;
+        }
         .fade{animation:fu 0.38s ease both}
         @keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
@@ -1275,9 +1294,10 @@ export default function App({ onGoHome }) {
                   onClick={() => { setMaterial(mat); setFreqKey(fk); setSetupErr(""); }}
                   aria-label={`Use ${label} example material`}
                   style={{ padding:"11px 13px", borderRadius:12, cursor:"pointer", textAlign:"left",
-                    border:`1px solid ${FREQS[fk].color}22`, background:"rgba(6,15,30,0.75)", transition:"all 0.2s" }}
+                    border:`1px solid ${FREQS[fk].color}22`,
+                    background:"var(--panel,rgba(6,15,30,0.75))", transition:"all 0.2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"55"; e.currentTarget.style.background=FREQS[fk].color+"0a"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"22"; e.currentTarget.style.background="rgba(6,15,30,0.75)"; }}>
+                  onMouseLeave={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"22"; e.currentTarget.style.background="var(--panel,rgba(6,15,30,0.75))"; }}>
                   <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.08em", color:FREQS[fk].color, marginBottom:3 }}>{FREQS[fk].label}</div>
                   <div style={{ fontSize:13, color:"#64748b" }}>{label}</div>
                 </button>
@@ -1299,17 +1319,24 @@ export default function App({ onGoHome }) {
                     fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.07em",
                     background:pomPhase===k ? FREQS[p.freqKey].color+"14" : "transparent",
                     borderColor:pomPhase===k ? FREQS[p.freqKey].color+"55" : "rgba(255,255,255,0.07)",
-                    color:pomPhase===k ? FREQS[p.freqKey].color : "#334155", transition:"all 0.2s" }}>
+                    color:pomPhase===k ? FREQS[p.freqKey].color : "var(--text4,#334155)", transition:"all 0.2s" }}>
                   {p.label}
                 </button>
               ))}
             </div>
 
-            {/* Blob timer canvas */}
-            <div style={{ position:"relative", width:"100%", height:isMobile?300:340 }}>
-              <canvas ref={blobCanvasRef} width={isMobile?390:560} height={isMobile?300:340}
+            {/* Blob timer canvas — square so arc() draws circles not ovals */}
+            <div style={{ position:"relative", width:"100%", height:isMobile?300:340,
+              display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <canvas ref={blobCanvasRef}
+                width={isMobile?300:340}
+                height={isMobile?300:340}
                 aria-hidden="true"
-                style={{ position:"absolute", inset:0, width:"100%", height:"100%" }} />
+                style={{ position:"absolute",
+                  width:isMobile?300:340,
+                  height:isMobile?300:340,
+                  left:"50%", top:"50%",
+                  transform:"translate(-50%,-50%)" }} />
               {/* Timer overlay */}
               <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
                 alignItems:"center", justifyContent:"center", gap:0, pointerEvents:"none" }}>
@@ -1318,7 +1345,7 @@ export default function App({ onGoHome }) {
                   {phase.label}
                 </div>
                 <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:66, lineHeight:1,
-                  color:"#f1f5f9", letterSpacing:"0.05em",
+                  color:"var(--text1,#f1f5f9)", letterSpacing:"0.05em",
                   textShadow:running ? `0 0 28px ${freq.glow}` : "none", transition:"text-shadow 0.5s" }}>
                   {fmt(timeLeft)}
                 </div>
@@ -1328,7 +1355,7 @@ export default function App({ onGoHome }) {
                 <div style={{ display:"flex", gap:8, marginTop:12 }}>
                   {[0,1,2,3].map(i => (
                     <div key={i} style={{ width:6, height:6, borderRadius:"50%",
-                      background:i < sessions%4 ? freq.color : "rgba(255,255,255,0.08)",
+                      background:i < sessions%4 ? freq.color : "var(--bg3,rgba(255,255,255,0.08))",
                       boxShadow:i < sessions%4 ? `0 0 8px ${freq.glow}` : "none", transition:"all 0.3s" }} />
                   ))}
                   <span style={{ fontSize:10, color:"var(--muted,#64748b)", fontFamily:"'Space Mono',monospace", marginLeft:4 }}>
@@ -1339,7 +1366,7 @@ export default function App({ onGoHome }) {
             </div>
 
             {/* Spectrum canvas */}
-            <div style={{ borderRadius:14, overflow:"hidden", background:"rgba(2,8,16,0.6)", border:"1px solid rgba(255,255,255,0.04)", marginTop:-8 }}>
+            <div style={{ borderRadius:14, overflow:"hidden", background:"var(--panel2,rgba(2,8,16,0.6))", border:"1px solid var(--border2,rgba(255,255,255,0.04))", marginTop:-8 }}>
               <canvas ref={specCanvasRef} width={isMobile?390:560} height={68} aria-hidden="true" style={{ width:"100%", height:68, display:"block" }} />
             </div>
 

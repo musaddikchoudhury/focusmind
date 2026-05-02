@@ -23,6 +23,11 @@ export const THEMES = {
       "--glass":       "rgba(6,15,30,0.88)",
       "--shadow":      "rgba(0,0,0,0.4)",
       "--focus":       "#00e5ff",
+      "--panel":       "rgba(6,15,30,0.82)",
+      "--panel2":      "rgba(10,20,42,0.92)",
+      "--ticker-border":"rgba(255,255,255,0.07)",
+      "--ticker-text": "#475569",
+      "--grid-line":   "rgba(255,255,255,0.013)",
     }
   },
   light: {
@@ -45,6 +50,11 @@ export const THEMES = {
       "--glass":       "rgba(255,255,255,0.92)",
       "--shadow":      "rgba(0,0,0,0.12)",
       "--focus":       "#006b7a",
+      "--panel":       "rgba(248,250,252,0.92)",
+      "--panel2":      "rgba(255,255,255,0.98)",
+      "--ticker-border":"rgba(0,0,0,0.08)",
+      "--ticker-text": "#475569",
+      "--grid-line":   "rgba(0,0,0,0.04)",
     }
   },
   beige: {
@@ -67,6 +77,11 @@ export const THEMES = {
       "--glass":       "rgba(252,246,237,0.92)",
       "--shadow":      "rgba(100,60,20,0.15)",
       "--focus":       "#8b5a2b",
+      "--panel":       "rgba(250,243,232,0.92)",
+      "--panel2":      "rgba(255,250,242,0.98)",
+      "--ticker-border":"rgba(139,90,43,0.12)",
+      "--ticker-text": "#7a5230",
+      "--grid-line":   "rgba(139,90,43,0.04)",
     }
   },
 };
