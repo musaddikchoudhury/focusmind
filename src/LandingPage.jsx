@@ -26,6 +26,19 @@ function useCounter(target, duration = 2000, start = false) {
   return count;
 }
 
+// ── Responsive breakpoint hook ───────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < bp : false
+  );
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < bp);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, [bp]);
+  return isMobile;
+}
+
 // ── Intersection observer hook ────────────────────────────────────────────
 function useInView(threshold = 0.15) {
   const ref = useRef(null);
@@ -218,6 +231,7 @@ function Testimonial({ quote, name, role, avatar, delay }) {
 export default function LandingPage({ onLaunch }) {
   const { authError, user, signInWithGoogle, signOut, continueAsGuest } = useAuth();
   const { t } = useTranslation();
+  const isMobile = useIsMobile(768);   // drives all responsive layout in JS
   const [scrollY, setScrollY] = useState(0);
   const [launching, setLaunching] = useState(false);
   const [statsInView, setStatsInView] = useState(false);
@@ -259,9 +273,11 @@ export default function LandingPage({ onLaunch }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg,#020810)", color: "var(--text1,#e2e8f0)",
-      fontFamily: "'DM Sans', sans-serif", overflowX: "hidden",
-      overflowY: launching ? "hidden" : "auto" }}>
+    <div style={{ minHeight: "100vh", width: "100%", maxWidth: "100vw",
+      background: "var(--bg,#020810)", color: "var(--text1,#e2e8f0)",
+      fontFamily: "'DM Sans', sans-serif",
+      overflowX: "hidden", overflowY: launching ? "hidden" : "auto",
+      position: "relative" }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
@@ -270,8 +286,8 @@ export default function LandingPage({ onLaunch }) {
 
         /* Grid bg */
         .lp-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
-          background-image:linear-gradient(var(--grid-line,rgba(255,255,255,0.012)) 1px,transparent 1px),
-          linear-gradient(90deg,var(--grid-line,rgba(255,255,255,0.012)) 1px,transparent 1px);
+          background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);
           background-size:48px 48px;}
 
         /* Launch overlay */
@@ -308,11 +324,8 @@ export default function LandingPage({ onLaunch }) {
 
         /* Stat card */
         .stat-card{background:var(--panel,rgba(6,15,30,0.8));border:1px solid var(--border,rgba(255,255,255,0.07));
-          border-radius:18px;padding:28px 24px;text-align:center;transition:all 0.3s;
-          box-shadow:0 2px 12px var(--shadow,rgba(0,0,0,0.2));}
+          border-radius:18px;padding:28px 24px;text-align:center;transition:all 0.3s;}
         .stat-card:hover{border-color:rgba(0,229,255,0.25);transform:translateY(-3px);}
-        /* Sub text in stat cards needs stronger contrast */
-        .stat-sub{color:var(--text3,#64748b) !important;}
 
         /* Nav link */
         .nav-link{color:var(--text3,#475569);font-size:13px;text-decoration:none;transition:color 0.2s;cursor:pointer;}
@@ -329,48 +342,7 @@ export default function LandingPage({ onLaunch }) {
 
         ::-webkit-scrollbar{width:3px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:var(--border,#0f2744);border-radius:2px}
-
-        /* ── Theme-aware overrides ── */
-        body[data-theme="light"] .lp-nav.scrolled,
-        body[data-theme="beige"] .lp-nav.scrolled {
-          background: var(--glass) !important;
-          border-bottom-color: var(--border) !important;
-        }
-        body[data-theme="light"] .stat-card,
-        body[data-theme="beige"] .stat-card {
-          background: var(--panel) !important;
-          border-color: var(--border) !important;
-        }
-        body[data-theme="light"] .modal-card,
-        body[data-theme="beige"] .modal-card {
-          background: var(--panel2,#fff) !important;
-          border-color: var(--border) !important;
-          color: var(--text1) !important;
-        }
-        body[data-theme="light"] .modal-card p,
-        body[data-theme="beige"] .modal-card p {
-          color: var(--text2) !important;
-        }
-        body[data-theme="light"] .modal-card .sign-in-btn,
-        body[data-theme="beige"] .modal-card .sign-in-btn {
-          box-shadow: 0 4px 16px rgba(0,180,200,0.25);
-        }
-        body[data-theme="light"] .grad-text,
-        body[data-theme="beige"] .grad-text {
-          background: linear-gradient(135deg,#0078a0,#7c3aed 50%,#c2410c) !important;
-          -webkit-background-clip: text !important;
-          background-clip: text !important;
-        }
-        body[data-theme="light"] .scroll-cue,
-        body[data-theme="beige"] .scroll-cue {
-          background: var(--panel) !important;
-          border-color: var(--border) !important;
-        }
-        body[data-theme="light"] .cta-btn:hover,
-        body[data-theme="beige"] .cta-btn:hover {
-          box-shadow: 0 12px 40px rgba(0,150,180,0.35) !important;
-        }
+        ::-webkit-scrollbar-thumb{background:#0f2744;border-radius:2px}
 
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
@@ -396,10 +368,11 @@ export default function LandingPage({ onLaunch }) {
           .lp-nav-inner{padding:12px 16px !important;display:grid !important;
             grid-template-columns:auto 1fr auto !important;gap:10px !important;}
           .lp-nav-links{display:none !important;}
-          .lp-nav-actions{gap:6px !important;justify-content:flex-end !important;min-width:0;}
-          .lp-user-actions{gap:6px !important;}
+          .lp-nav-actions{gap:4px !important;justify-content:flex-end !important;min-width:0;overflow:hidden;}
+          .lp-user-actions{gap:4px !important;}
           .lp-user-actions .sec-btn{display:none !important;}
-          .lp-launch{padding:9px 12px !important;font-size:10px !important;}
+          .lp-launch{padding:8px 12px !important;font-size:10px !important;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+          .lp-nav-signin{padding:8px 10px !important;font-size:10px !important;}
           .hero-grid,.how-grid{grid-template-columns:1fr !important;gap:34px !important;text-align:center;}
           .hero-copy{order:2;}
           .hero-orb{order:1;}
@@ -550,19 +523,19 @@ export default function LandingPage({ onLaunch }) {
             )}
 
             <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
-              <div style={{ flex:1,height:1,background:"var(--border,rgba(255,255,255,0.07))" }}/>
-              <span style={{ fontSize:9,color:"var(--text4,#64748b)",fontFamily:"'Space Mono',monospace",letterSpacing:"0.14em" }}>OR</span>
-              <div style={{ flex:1,height:1,background:"var(--border,rgba(255,255,255,0.07))" }}/>
+              <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.07)" }}/>
+              <span style={{ fontSize:9,color:"#1e3a5f",fontFamily:"'Space Mono',monospace",letterSpacing:"0.14em" }}>OR</span>
+              <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.07)" }}/>
             </div>
 
             <button onClick={() => { setShowLogin(false); handleLaunch(); }}
               aria-label={t("auth.continueAsGuest")}
               style={{ width:"100%",padding:"12px",borderRadius:12,cursor:"pointer",
                 border:"1px solid rgba(255,255,255,0.1)",background:"transparent",
-                color:"var(--text3,#64748b)",fontFamily:"'Space Mono',monospace",fontSize:11,
+                color:"#64748b",fontFamily:"'Space Mono',monospace",fontSize:11,
                 letterSpacing:"0.07em",transition:"all 0.2s" }}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border2,rgba(255,255,255,0.22))";e.currentTarget.style.color="var(--text2,#94a3b8)";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border,rgba(255,255,255,0.1))";e.currentTarget.style.color="var(--text3,#64748b)";}}>
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.22)";e.currentTarget.style.color="#94a3b8";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.1)";e.currentTarget.style.color="#64748b";}}>
               CONTINUE WITHOUT ACCOUNT
             </button>
 
@@ -578,13 +551,22 @@ export default function LandingPage({ onLaunch }) {
       )}
 
       {/* ── HERO ── */}
-      <section ref={heroRef} className="hero-section" style={{ minHeight:"100vh",display:"flex",alignItems:"center",
-        justifyContent:"center",padding:"120px 24px 80px",position:"relative" }}>
+      <section ref={heroRef} className="hero-section"
+        style={{ minHeight:"100vh", display:"flex", alignItems:"center",
+          justifyContent:"center",
+          padding: isMobile ? "100px 16px 60px" : "120px 24px 80px",
+          position:"relative", width:"100%" }}>
         <div className="hero-grid" style={{ maxWidth:1100,margin:"0 auto",width:"100%",
-          display:"grid",gridTemplateColumns:"1fr 1fr",gap:60,alignItems:"center" }}>
+          display:"grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: isMobile ? 32 : 60,
+          alignItems:"center",
+          textAlign: isMobile ? "center" : "left" }}>
 
           {/* Left */}
-          <div className="hero-copy" style={{ animation:"fadeUp 0.8s ease both" }}>
+          <div className="hero-copy"
+            style={{ animation:"fadeUp 0.8s ease both",
+              textAlign: isMobile ? "center" : "left" }}>
             {/* Badge */}
             <div style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"6px 14px",
               borderRadius:999,border:"1px solid rgba(0,229,255,0.2)",
@@ -609,7 +591,8 @@ export default function LandingPage({ onLaunch }) {
             </p>
 
             {/* CTAs */}
-            <div className="hero-cta" style={{ display:"flex",gap:14,flexWrap:"wrap",marginBottom:40 }}>
+            <div className="hero-cta" style={{ display:"flex",gap:14,flexWrap:"wrap",marginBottom:40,
+              justifyContent: isMobile ? "center" : "flex-start" }}>
               <button className="cta-btn" onClick={handleLaunch}
                 aria-label={t("landing.startFree")}
                 style={{ background:"#00e5ff",color:"#020810",
@@ -625,7 +608,8 @@ export default function LandingPage({ onLaunch }) {
             </div>
 
             {/* Freq badges */}
-            <div className="freq-row" style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+            <div className="freq-row" style={{ display:"flex",gap:8,flexWrap:"wrap",
+              justifyContent: isMobile ? "center" : "flex-start" }}>
               {[["#00e5ff","BETA 18Hz","Active Focus"],["#b57bee","ALPHA 10Hz","Calm Reading"],
                 ["#ff4d1a","GAMMA 40Hz","Peak Cognition"],["#00ffb3","THETA 6Hz","Deep Rest"]
               ].map(([color,label]) => (
@@ -648,16 +632,15 @@ export default function LandingPage({ onLaunch }) {
       </section>
 
       {/* ── TICKER ── */}
-      <div style={{ borderTop:"1px solid var(--ticker-border,rgba(255,255,255,0.05))",
-        borderBottom:"1px solid var(--ticker-border,rgba(255,255,255,0.05))",
-        padding:"14px 0",overflow:"hidden",
-        background:"var(--bg3,rgba(0,229,255,0.02))" }}>
+      <div style={{ borderTop:"1px solid rgba(255,255,255,0.05)",
+        borderBottom:"1px solid rgba(255,255,255,0.05)",
+        padding:"14px 0",overflow:"hidden",background:"rgba(0,229,255,0.02)" }}>
         <div style={{ display:"flex",animation:"ticker 24s linear infinite",width:"max-content" }}>
           {[...Array(2)].map((_,gi) => (
             <div key={gi} style={{ display:"flex",gap:0 }}>
               {["AI FREQUENCY MATCHING","ADAPTIVE POMODORO","VOICE STUDY COMPANION","SMART DEBRIEF","RETENTION QUIZZES","WEAK AREA TRACKING","BRAINWAVE ENTRAINMENT","NEURAL FOCUS SYSTEM"].map((item,i) => (
                 <span key={i} style={{ fontFamily:"'Space Mono',monospace",fontSize:10,
-                  letterSpacing:"0.15em",color:"var(--ticker-text,#475569)",padding:"0 32px",whiteSpace:"nowrap" }}>
+                  letterSpacing:"0.15em",color:"#1e3a5f",padding:"0 32px",whiteSpace:"nowrap" }}>
                   {item} <span style={{ color:"#00e5ff22",marginLeft:32 }}>◆</span>
                 </span>
               ))}
@@ -667,8 +650,8 @@ export default function LandingPage({ onLaunch }) {
       </div>
 
       {/* ── STATS ── */}
-      <section ref={statsRef} style={{ padding:"80px 24px",maxWidth:1100,margin:"0 auto" }}>
-        <div className="stats-grid" style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16 }}>
+      <section ref={statsRef} style={{ padding: isMobile ? "60px 16px" : "80px 24px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
+        <div className="stats-grid" style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap:16 }}>
           {[
             { val:`${c1.toLocaleString()}+`, label:"Study Sessions", sub:"completed on FocusMind", color:"#00e5ff" },
             { val:`${c2}%`, label:"Retention Rate", sub:"vs 31% industry average", color:"#b57bee" },
@@ -679,20 +662,22 @@ export default function LandingPage({ onLaunch }) {
               <div style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:52,
                 color:s.color,lineHeight:1,letterSpacing:"0.03em",marginBottom:6 }}>{s.val}</div>
               <div style={{ fontSize:14,color:"var(--text1,#e2e8f0)",fontWeight:500,marginBottom:4 }}>{s.label}</div>
-              <div className="stat-sub" style={{ fontSize:12,color:"var(--text3,#64748b)" }}>{s.sub}</div>
+              <div style={{ fontSize:12,color:"var(--text3,#334155)" }}>{s.sub}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── PROBLEM ── */}
-      <section style={{ padding:"60px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
+      <section style={{ padding: isMobile ? "40px 16px 60px" : "60px 24px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
         <div className="problem-card" style={{ background:"rgba(255,77,26,0.04)",border:"1px solid rgba(255,77,26,0.12)",
-          borderRadius:24,padding:"48px",position:"relative",overflow:"hidden" }}>
+          borderRadius: isMobile ? 18 : 24,
+          padding: isMobile ? "28px 20px" : "48px",
+          position:"relative",overflow:"hidden" }}>
           <div style={{ position:"absolute",top:-40,right:-40,fontFamily:"'Bebas Neue',sans-serif",
             fontSize:200,color:"rgba(255,77,26,0.04)",lineHeight:1,pointerEvents:"none",userSelect:"none" }}>?</div>
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
-            color:"#ff4d1a",marginBottom:12 }}>THE PROBLEM</div>
+            color:"#ff4d1a",marginBottom:12,opacity:0.8 }}>THE PROBLEM</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(32px,4vw,52px)",
             letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",marginBottom:20,maxWidth:700,lineHeight:1.05 }}>
             STUDENTS SPEND HOURS STUDYING AND REMEMBER ALMOST NOTHING.
@@ -712,16 +697,18 @@ export default function LandingPage({ onLaunch }) {
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
+      <section id="features" style={{ padding: isMobile ? "30px 16px 60px" : "40px 24px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
         <div style={{ textAlign:"center",marginBottom:56 }}>
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
-            color:"var(--ticker-text,#64748b)",marginBottom:12 }}>WHAT FOCUSMIND DOES</div>
+            color:"#1e3a5f",marginBottom:12 }}>WHAT FOCUSMIND DOES</div>
           <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,60px)",
             letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:1.05 }}>
             EVERY TOOL YOUR<br/><span className="grad-text">BRAIN ACTUALLY NEEDS</span>
           </h2>
         </div>
-        <div className="features-grid" style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16 }}>
+        <div className="features-grid" style={{ display:"grid",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(2,1fr)",
+            gap:16 }}>
           <FeatureCard delay={0} icon="🧠" color="#00e5ff" title="AI FREQUENCY MATCHING"
             desc="Describe what you're studying and our AI instantly recommends the optimal brainwave frequency — Gamma for math, Beta for research, Alpha for reading, Theta for creative work. Real isochronic tones generated in-browser." />
           <FeatureCard delay={100} icon="⏱" color="#b57bee" title="ADAPTIVE POMODORO"
@@ -734,11 +721,11 @@ export default function LandingPage({ onLaunch }) {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
+      <section id="how-it-works" style={{ padding: isMobile ? "30px 16px 60px" : "40px 24px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
         <div className="how-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center" }}>
           <div>
             <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
-              color:"var(--ticker-text,#64748b)",marginBottom:12 }}>HOW IT WORKS</div>
+              color:"#1e3a5f",marginBottom:12 }}>HOW IT WORKS</div>
             <h2 style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,4vw,56px)",
               letterSpacing:"0.04em",color:"var(--text1,#f1f5f9)",lineHeight:1.05,marginBottom:40 }}>
               THREE STEPS TO<br/><span className="grad-text">DEEPER FOCUS</span>
@@ -756,7 +743,7 @@ export default function LandingPage({ onLaunch }) {
           {/* Visual */}
           <div style={{ position:"relative" }}>
             <div style={{ background:"var(--panel,rgba(6,15,30,0.8))",border:"1px solid var(--border,rgba(255,255,255,0.07))",
-              borderRadius:24,padding:32,overflow:"hidden" }}>
+              borderRadius:24,padding: isMobile ? 20 : 32,overflow:"hidden" }}>
               <div style={{ position:"absolute",inset:0,background:"radial-gradient(circle at 70% 30%, rgba(0,229,255,0.05), transparent 60%)",pointerEvents:"none" }} />
               {[
                 { label:"Material analyzed", icon:"🧠", color:"#00e5ff", sub:"Beta 18Hz recommended" },
@@ -786,7 +773,7 @@ export default function LandingPage({ onLaunch }) {
       </section>
 
       {/* ── TESTIMONIALS ── */}
-      <section id="testimonials" style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
+      <section id="testimonials" style={{ padding: isMobile ? "30px 16px 60px" : "40px 24px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
         <div style={{ textAlign:"center",marginBottom:48 }}>
           <div style={{ fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.18em",
             color:"#1e3a5f",marginBottom:12 }}>WHAT STUDENTS SAY</div>
@@ -795,7 +782,7 @@ export default function LandingPage({ onLaunch }) {
             REAL RESULTS FROM<br/><span className="grad-text">REAL STUDENTS</span>
           </h2>
         </div>
-        <div className="testimonials-grid" style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16 }}>
+        <div className="testimonials-grid" style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap:16 }}>
           <Testimonial delay={0} avatar="👩‍💻"
             name="Priya S." role="CS MAJOR · NYU"
             quote="I used to study for 3 hours and barely remember anything. FocusMind's voice companion literally explains concepts while I work. My quiz scores went from 60% to 90% in two weeks." />
@@ -809,10 +796,11 @@ export default function LandingPage({ onLaunch }) {
       </section>
 
       {/* ── CTA SECTION ── */}
-      <section style={{ padding:"40px 24px 80px",maxWidth:1100,margin:"0 auto" }}>
+      <section style={{ padding: isMobile ? "30px 16px 60px" : "40px 24px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
         <div className="cta-panel" style={{ background:"linear-gradient(135deg, rgba(0,229,255,0.06) 0%, rgba(181,123,238,0.06) 50%, rgba(255,77,26,0.06) 100%)",
           border:"1px solid rgba(255,255,255,0.08)",borderRadius:28,
-          padding:"72px 48px",textAlign:"center",position:"relative",overflow:"hidden" }}>
+          padding: isMobile ? "40px 20px" : "72px 48px",
+          textAlign:"center",position:"relative",overflow:"hidden" }}>
           <div style={{ position:"absolute",inset:0,
             background:"radial-gradient(circle at 50% 50%, rgba(0,229,255,0.04), transparent 70%)",
             pointerEvents:"none" }} />
@@ -844,8 +832,11 @@ export default function LandingPage({ onLaunch }) {
 
       {/* ── FOOTER ── */}
       <footer style={{ borderTop:"1px solid rgba(255,255,255,0.05)",padding:"40px 24px" }}>
-        <div className="footer-inner" style={{ maxWidth:1100,margin:"0 auto",
-          display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:20 }}>
+        <div className="footer-inner" style={{ maxWidth:1100,margin:"0 auto",width:"100%",
+          display:"flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "flex-start" : "center",
+          justifyContent:"space-between",flexWrap:"wrap",gap:20 }}>
           <div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.1em",
               color:"var(--text1,#f1f5f9)",marginBottom:4 }}>
