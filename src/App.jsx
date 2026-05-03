@@ -1152,13 +1152,13 @@ export default function App({ onGoHome }) {
         @keyframes dotPulse{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
         @keyframes continuousPulse{0%,100%{box-shadow:0 0 0 0 var(--ac)}50%{box-shadow:0 0 0 8px transparent}}
         .glass{background:var(--glass,rgba(6,15,30,0.88));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:18px;backdrop-filter:blur(18px);}
-        textarea{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
-          border-radius:14px;color:#e2e8f0;font-family:'DM Sans',sans-serif;font-size:15px;
+        textarea{width:100%;background:var(--bg3,rgba(255,255,255,0.03));border:1px solid var(--border,rgba(255,255,255,0.08));
+          border-radius:14px;color:var(--text1,#e2e8f0);font-family:'DM Sans',sans-serif;font-size:15px;
           padding:17px;resize:vertical;outline:none;line-height:1.7;transition:border-color 0.2s;}
-        textarea:focus{border-color:rgba(100,200,255,0.3);}
-        textarea::placeholder{color:#1a3050;}
+        textarea:focus{border-color:var(--focus,rgba(100,200,255,0.3));}
+        textarea::placeholder{color:var(--text4,#64748b);}
         input[type=range]{-webkit-appearance:none;appearance:none;height:2px;border-radius:2px;outline:none;cursor:pointer;}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;cursor:pointer;border:2px solid #020810;}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;cursor:pointer;border:2px solid var(--bg,#020810);}
         .opt{width:100%;padding:12px 15px;border-radius:12px;border:1px solid var(--border,rgba(255,255,255,0.07));
           background:var(--bg3,rgba(255,255,255,0.02));color:var(--text2,#94a3b8);cursor:pointer;text-align:left;
           font-family:'DM Sans',sans-serif;font-size:14px;transition:all 0.15s;line-height:1.6;}
@@ -1171,7 +1171,96 @@ export default function App({ onGoHome }) {
         .chip-in{animation:chipIn 0.32s cubic-bezier(.16,1,.3,1) both}
         .typing-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;animation:dotPulse 1s infinite}
         .typing-dot:nth-child(2){animation-delay:.15s}.typing-dot:nth-child(3){animation-delay:.3s}
-        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#0f2744;border-radius:2px}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border,#0f2744);border-radius:2px}
+
+        /* ══ LIGHT / BEIGE THEME COMPREHENSIVE OVERRIDES ══ */
+        body[data-theme="light"] *,
+        body[data-theme="beige"] * { box-sizing:border-box; }
+
+        /* Setup screen heading */
+        body[data-theme="light"] h1,
+        body[data-theme="beige"] h1 { color: var(--text1) !important; }
+
+        /* Setup screen glass card */
+        body[data-theme="light"] .glass,
+        body[data-theme="beige"] .glass {
+          background: var(--glass) !important;
+          border-color: var(--border) !important;
+        }
+
+        /* Quick-start subject buttons */
+        body[data-theme="light"] .quick-btn,
+        body[data-theme="beige"] .quick-btn {
+          background: var(--panel) !important;
+          border-color: var(--border) !important;
+        }
+        body[data-theme="light"] .quick-btn:hover,
+        body[data-theme="beige"] .quick-btn:hover {
+          background: var(--bg2) !important;
+        }
+
+        /* Spectrum canvas wrapper */
+        body[data-theme="light"] .spec-wrap,
+        body[data-theme="beige"] .spec-wrap {
+          background: var(--panel,rgba(248,250,252,0.9)) !important;
+          border-color: var(--border) !important;
+        }
+
+        /* Session dots empty state */
+        body[data-theme="light"] .session-dot-empty,
+        body[data-theme="beige"] .session-dot-empty {
+          background: var(--bg3) !important;
+        }
+
+        /* Voice panel */
+        body[data-theme="light"] .voice-bg,
+        body[data-theme="beige"] .voice-bg {
+          background: var(--glass) !important;
+          border-color: var(--border) !important;
+        }
+
+        /* Input range thumb */
+        body[data-theme="light"] input[type=range]::-webkit-slider-thumb,
+        body[data-theme="beige"] input[type=range]::-webkit-slider-thumb {
+          border-color: var(--bg) !important;
+          background: currentColor;
+        }
+
+        /* Debrief rating stars / numbers */
+        body[data-theme="light"] .debrief-card,
+        body[data-theme="beige"] .debrief-card {
+          background: var(--glass) !important;
+          border-color: var(--border) !important;
+          color: var(--text1) !important;
+        }
+
+        /* Quiz options */
+        body[data-theme="light"] .opt,
+        body[data-theme="beige"] .opt {
+          background: var(--bg3) !important;
+          color: var(--text2) !important;
+          border-color: var(--border) !important;
+        }
+        body[data-theme="light"] .opt:hover:not(:disabled),
+        body[data-theme="beige"] .opt:hover:not(:disabled) {
+          background: var(--bg2) !important;
+          color: var(--text1) !important;
+          border-color: var(--border2) !important;
+        }
+
+        /* Weak areas banner */
+        body[data-theme="light"] .weak-banner,
+        body[data-theme="beige"] .weak-banner {
+          background: rgba(255,107,107,0.06) !important;
+          border-color: rgba(255,107,107,0.2) !important;
+        }
+
+        /* Freq switcher */
+        body[data-theme="light"] .freq-card,
+        body[data-theme="beige"] .freq-card {
+          background: var(--panel) !important;
+          border-color: var(--border) !important;
+        }
       `}</style>
 
       <div className="grid-bg" />
@@ -1232,10 +1321,11 @@ export default function App({ onGoHome }) {
           onClick={() => setIsMobile(m => !m)}
           aria-label={isMobile ? "Switch preview to desktop width" : "Switch preview to mobile width"}
           title={isMobile ? "Switch to Desktop" : "Switch to Mobile"}
-          style={{ width:32, height:32, borderRadius:8, border:`1px solid ${isMobile ? freq.color+"55" : "rgba(255,255,255,0.09)"}`,
-            background:isMobile ? freq.color+"12" : "transparent", cursor:"pointer",
+          style={{ width:32, height:32, borderRadius:8,
+            border:`1px solid ${isMobile ? freq.color+"55" : "var(--border,rgba(255,255,255,0.09))"}`,
+            background:isMobile ? freq.color+"12" : "var(--bg3,transparent)", cursor:"pointer",
             display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:15, transition:"all 0.2s", color:isMobile ? freq.color : "#475569" }}>
+            fontSize:15, transition:"all 0.2s", color:isMobile ? freq.color : "var(--text3,#475569)" }}>
           {isMobile ? "📱" : "🖥️"}
         </button>
         </div>
@@ -1247,11 +1337,11 @@ export default function App({ onGoHome }) {
         {screen === "setup" && (
           <div className="fade" style={{ padding:"0 20px" }}>
             <div style={{ padding:"34px 0 26px", textAlign:"center" }}>
-              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.22em", color:"var(--text5,#64748b)", marginBottom:10 }}>
+              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.22em", color:"var(--muted,#64748b)", marginBottom:10 }}>
                 AI · FREQUENCY · POMODORO · VOICE
               </div>
               <h1 style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(50px,11vw,80px)",
-                lineHeight:0.9, letterSpacing:"0.04em", color:"#f1f5f9" }}>
+                lineHeight:0.9, letterSpacing:"0.04em", color:"var(--text1,#f1f5f9)" }}>
                 {t("setup.headline1")}<br/><span style={{ color:freq.color, textShadow:`0 0 40px ${freq.glow}` }}>{t("setup.headline2")}</span>
               </h1>
               <p style={{ color:"var(--muted,#64748b)", fontSize:13, marginTop:14, lineHeight:1.7 }}>
@@ -1260,14 +1350,14 @@ export default function App({ onGoHome }) {
             </div>
 
             <div className="glass" style={{ padding:24, marginBottom:12 }}>
-              <div style={{ fontSize:9, color:"var(--text5,#64748b)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.18em", marginBottom:10 }}>
+              <div style={{ fontSize:9, color:"var(--label,#94a3b8)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.14em", marginBottom:10 }}>
                 {t("setup.label")}
               </div>
               <textarea rows={4} value={material} onChange={e => setMaterial(e.target.value)}
                 aria-label="Study material" maxLength={2000}
                 placeholder="e.g. Organic chemistry — SN1/SN2 reaction mechanisms for my Friday exam..." />
               <div style={{ marginTop:7, textAlign:"right", fontSize:9,
-                color:"var(--text5,#64748b)", fontFamily:"'Space Mono',monospace",
+                color:"var(--muted,#64748b)", fontFamily:"'Space Mono',monospace",
                 letterSpacing:"0.08em" }}>
                 {material.length}/2000
               </div>
@@ -1293,13 +1383,14 @@ export default function App({ onGoHome }) {
                 <button key={fk}
                   onClick={() => { setMaterial(mat); setFreqKey(fk); setSetupErr(""); }}
                   aria-label={`Use ${label} example material`}
+                  className="quick-btn"
                   style={{ padding:"11px 13px", borderRadius:12, cursor:"pointer", textAlign:"left",
                     border:`1px solid ${FREQS[fk].color}22`,
                     background:"var(--panel,rgba(6,15,30,0.75))", transition:"all 0.2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"55"; e.currentTarget.style.background=FREQS[fk].color+"0a"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor=FREQS[fk].color+"22"; e.currentTarget.style.background="var(--panel,rgba(6,15,30,0.75))"; }}>
                   <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.08em", color:FREQS[fk].color, marginBottom:3 }}>{FREQS[fk].label}</div>
-                  <div style={{ fontSize:13, color:"#64748b" }}>{label}</div>
+                  <div style={{ fontSize:13, color:"var(--text2,#64748b)" }}>{label}</div>
                 </button>
               ))}
             </div>
@@ -1318,7 +1409,7 @@ export default function App({ onGoHome }) {
                   style={{ padding:"6px 13px", borderRadius:999, border:"1px solid", cursor:"pointer",
                     fontFamily:"'Space Mono',monospace", fontSize:9, letterSpacing:"0.07em",
                     background:pomPhase===k ? FREQS[p.freqKey].color+"14" : "transparent",
-                    borderColor:pomPhase===k ? FREQS[p.freqKey].color+"55" : "rgba(255,255,255,0.07)",
+                    borderColor:pomPhase===k ? FREQS[p.freqKey].color+"55" : "var(--border,rgba(255,255,255,0.07))",
                     color:pomPhase===k ? FREQS[p.freqKey].color : "var(--text4,#334155)", transition:"all 0.2s" }}>
                   {p.label}
                 </button>
@@ -1366,15 +1457,15 @@ export default function App({ onGoHome }) {
             </div>
 
             {/* Spectrum canvas */}
-            <div style={{ borderRadius:14, overflow:"hidden", background:"var(--panel2,rgba(2,8,16,0.6))", border:"1px solid var(--border2,rgba(255,255,255,0.04))", marginTop:-8 }}>
+            <div className="spec-wrap" style={{ borderRadius:14, overflow:"hidden", background:"var(--panel2,rgba(2,8,16,0.6))", border:"1px solid var(--border2,rgba(255,255,255,0.04))", marginTop:-8 }}>
               <canvas ref={specCanvasRef} width={isMobile?390:560} height={68} aria-hidden="true" style={{ width:"100%", height:68, display:"block" }} />
             </div>
 
             {/* Controls */}
             <div style={{ padding:"16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", gap:14 }}>
               <button style={iconBtn()} aria-label="Reset timer" onClick={() => { setRunning(false); stopAudio(); setTimeLeft(totalSecs); }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.22)"; e.currentTarget.style.color="#94a3b8"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.09)"; e.currentTarget.style.color="#475569"; }}>
+                onMouseEnter={e => { e.currentTarget.style.borderColor="var(--border2,rgba(255,255,255,0.22))"; e.currentTarget.style.color="var(--text2,#94a3b8)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="var(--border,rgba(255,255,255,0.09))"; e.currentTarget.style.color="var(--text3,#475569)"; }}>
                 ↺
               </button>
 
@@ -1410,8 +1501,8 @@ export default function App({ onGoHome }) {
               </button>
 
               <button style={iconBtn()} aria-label="Skip to debrief" onClick={triggerDebrief}
-                onMouseEnter={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.22)"; e.currentTarget.style.color="#94a3b8"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor="rgba(255,255,255,0.09)"; e.currentTarget.style.color="#475569"; }}>
+                onMouseEnter={e => { e.currentTarget.style.borderColor="var(--border2,rgba(255,255,255,0.22))"; e.currentTarget.style.color="var(--text2,#94a3b8)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="var(--border,rgba(255,255,255,0.09))"; e.currentTarget.style.color="var(--text3,#475569)"; }}>
                 ⏭
               </button>
             </div>
@@ -1431,7 +1522,7 @@ export default function App({ onGoHome }) {
               <span style={{ fontSize:10, color:"var(--muted,#64748b)", fontFamily:"'Space Mono',monospace", letterSpacing:"0.12em", minWidth:36, fontWeight:600 }}>VOL</span>
               <input type="range" min="0" max="1" step="0.01" value={volume}
                 onChange={e => setVolume(parseFloat(e.target.value))}
-                style={{ flex:1, background:`linear-gradient(to right,${freq.color} ${volume*100}%,rgba(255,255,255,0.07) ${volume*100}%)` }} />
+                style={{ flex:1, background:`linear-gradient(to right,${freq.color} ${volume*100}%,var(--bg3,rgba(255,255,255,0.07)) ${volume*100}%)` }} />
               <span style={{ fontSize:9, color:freq.color, fontFamily:"'Space Mono',monospace", minWidth:28, textAlign:"right" }}>
                 {Math.round(volume * 100)}%
               </span>
@@ -1443,7 +1534,7 @@ export default function App({ onGoHome }) {
                 {Object.entries(FREQS).map(([k, f]) => (
                   <button key={k} aria-label={`Switch frequency to ${f.label} ${f.hz} hertz`} onClick={() => { setFreqKey(k); if (audioOn) startAudio(k, volume); }}
                     style={{ padding:"9px 5px", borderRadius:10, cursor:"pointer", textAlign:"center",
-                      border:`1px solid ${freqKey===k ? f.color+"55" : "rgba(255,255,255,0.05)"}`,
+                      border:`1px solid ${freqKey===k ? f.color+"55" : "var(--border,rgba(255,255,255,0.05))"}`,
                       background:freqKey===k ? f.color+"0e" : "transparent", transition:"all 0.2s" }}>
                     <div style={{ width:6, height:6, borderRadius:"50%", background:f.color, margin:"0 auto 4px",
                       boxShadow:freqKey===k ? `0 0 7px ${f.glow}` : "none" }} />
